@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>한자 마스터 Pro</title>
+<script>
+(function(){function sh(m){var d=document.getElementById('err-bn');if(!d){d=document.createElement('div');d.id='err-bn';d.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#be123c;color:#fff;font:12px/1.5 sans-serif;padding:10px 14px;white-space:pre-wrap;word-break:break-all';(document.body||document.documentElement).appendChild(d)}d.textContent='⚠ 오류: '+m+'\n(이 문구를 캡처해서 알려주세요)'}
+window.addEventListener('error',function(e){sh((e.message||'')+(e.filename?' @'+e.filename.split('/').pop()+':'+e.lineno:''))});
+window.addEventListener('unhandledrejection',function(e){sh('Promise: '+((e.reason&&e.reason.message)||e.reason))});})();
+</script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>if(window.tailwind)tailwind.config={darkMode:'class'}</script>
+<script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&family=Noto+Serif+KR:wght@700;900&display=swap" rel="stylesheet">
+<style>
+html{overflow-y:scroll;scroll-behavior:auto!important}
+body{font-family:'Noto Sans KR',system-ui,sans-serif}
+.hj{font-family:'Noto Serif KR',serif}
+.tab{padding:.5rem 1rem;border-radius:.75rem;transition:all .2s}
+.tab.on,.sel-on{background:#4f46e5!important;color:#fff!important;border-color:#4f46e5!important}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:1.25rem;transition:border-color .2s,box-shadow .2s,background-color .2s}
+.dark .card{background:#1e293b;border-color:#334155}
+.inp{width:100%;padding:.5rem .75rem;border-radius:.75rem;background:#f1f5f9;border:1px solid #e2e8f0;font-size:.8rem}
+.dark .inp{background:#0f172a;border-color:#334155}
+.mdl{position:fixed;inset:0;z-index:50;background:rgba(15,23,42,.75);display:none;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px)}
+.mdl.open{display:flex}
+.card-selected{border-color:#6366f1!important;box-shadow:0 0 0 2px #6366f1}
+.fdrag{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.b{padding:.5rem .75rem;border-radius:.75rem;font-weight:700;font-size:.75rem;transition:background-color .2s}
+.g{background:#e2e8f0}.dark .g{background:#1e293b}
+.pri{background:#4f46e5;color:#fff}.grn{background:#059669;color:#fff}.red{background:#e11d48;color:#fff}
+</style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen pb-20">
+
+<header class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-800">
+<div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+  <div class="flex items-center gap-2 min-w-0">
+    <button onclick="go(null)" class="flex items-center gap-2 font-black text-lg shrink-0"><span class="hj w-9 h-9 rounded-xl bg-indigo-600 text-white grid place-items-center">漢</span><span class="hidden sm:inline">한자 마스터 Pro</span></button>
+    <span id="crumb" class="hidden text-sm font-black text-indigo-600 dark:text-indigo-400 truncate"></span>
+  </div>
+  <div class="flex gap-2 shrink-0">
+    <button onclick="openTrash()" class="b g">🗑️<span id="trash-n" class="ml-1"></span></button>
+    <button onclick="startReset()" class="b g" title="모든 데이터 초기화">♻️<span class="hidden sm:inline ml-1">초기화</span></button>
+    <button onclick="toggleTheme()" class="b g">🌓</button>
+  </div>
+</div>
+</header>
+
+<main class="max-w-6xl mx-auto px-4 py-5">
+<section id="v-home" class="space-y-5">
+  <h2 class="text-center text-xl font-black pt-2">무엇을 공부할까요?</h2>
+  <div id="home-cards" class="grid sm:grid-cols-2 gap-4 max-w-3xl mx-auto"></div>
+  <div id="home-quick" class="max-w-3xl mx-auto flex flex-wrap gap-2 justify-center text-xs font-bold"></div>
+</section>
+
+<div id="sec-bar" class="hidden mb-4"><div class="flex items-center justify-between gap-2">
+  <nav class="flex gap-1 text-xs font-bold bg-white dark:bg-slate-900 p-1 rounded-2xl border border-slate-200 dark:border-slate-800">
+    <button id="st-study" class="tab" onclick="go(nav.sec,'study')"></button>
+    <button id="st-quiz" class="tab" onclick="go(nav.sec,'quiz')">✍ 퀴즈</button>
+  </nav>
+  <div id="sec-add-wrap"><button id="sec-add" onclick="secAdd()" class="b grn py-2.5"></button></div>
+</div></div>
+
+<section id="v-hanja" class="hidden space-y-4">
+  <div id="folder-view" class="space-y-4">
+    <div class="flex items-center justify-between">
+      <h2 class="text-base font-black">📂 학습 폴더</h2>
+      <div class="flex gap-2">
+        <button id="btn-edit" onclick="toggleFolderEdit()" class="b g">✏ 폴더 수정</button>
+        <button onclick="addFolder()" class="b pri">+ 새 폴더</button>
+      </div>
+    </div>
+    <div id="folder-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+  </div>
+  <div id="item-view" class="space-y-4 hidden">
+    <div class="card p-3 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2 min-w-0">
+        <button onclick="openFolderView()" class="b g shrink-0">◀ 폴더</button>
+        <h2 id="active-folder-title" class="font-black text-sm text-indigo-600 dark:text-indigo-400 truncate"></h2>
+      </div>
+      <span id="cnt" class="text-xs font-bold text-slate-500 shrink-0"></span>
+    </div>
+    <div class="card p-3 flex flex-wrap gap-2 items-center">
+      <input id="f-q" oninput="renderItems()" class="inp flex-1 min-w-[150px]" placeholder="한자, 음, 뜻 검색...">
+      <select id="f-status" onchange="renderItems()" class="inp w-auto"><option value="">전체 상태</option><option value="u">미암기</option><option value="l">암기 완료</option><option value="b">북마크</option></select>
+      <button id="btn-select-mode" onclick="toggleSelectMode()" class="b bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">☑ 다중 선택</button>
+    </div>
+    <div id="batch-bar" class="hidden card p-3 bg-indigo-50 flex-wrap gap-2 items-center justify-between text-xs font-bold">
+      <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" id="chk-all" onchange="selectAll(this.checked)" class="w-4 h-4 accent-indigo-600"><span id="batch-count" class="text-indigo-600 dark:text-indigo-400 font-black">0개 선택됨</span></label>
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-slate-400 text-[11px]">이동:</span>
+        <select id="batch-target-folder" class="inp !w-auto !py-1"></select>
+        <button onclick="batchMoveFolder()" class="b pri">폴더 이동</button>
+        <button onclick="batchToggleLearned(true)" class="b grn">암기 완료</button>
+        <button onclick="batchToggleLearned(false)" class="b bg-slate-600 text-white">미암기</button>
+        <button onclick="batchDelete()" class="b red">삭제</button>
+      </div>
+    </div>
+    <div id="grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
+    <p id="empty" class="hidden text-center text-sm text-slate-400 py-16">이 폴더에 한자가 없습니다. 위의 "+ 한자 추가"로 추가해 보세요.</p>
+  </div>
+</section>
+
+<section id="v-words" class="hidden space-y-4">
+  <div class="card p-3 flex flex-wrap gap-2 items-center text-xs">
+    <h2 class="font-black text-sm mr-auto">📝 단어장 <span id="w-cnt" class="text-xs text-slate-400"></span></h2>
+    <input id="w-q" oninput="renderWords()" class="inp !w-40" placeholder="단어 검색...">
+    <select id="w-st" onchange="renderWords()" class="inp !w-auto"><option value="">전체</option><option value="u">미암기</option><option value="l">암기 완료</option><option value="b">북마크</option></select>
+    <label class="font-bold flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" id="w-hide" onchange="wReveal.clear();renderWords()" class="w-4 h-4 accent-indigo-600">뜻 가리기</label>
+  </div>
+  <div id="w-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"></div>
+  <p id="w-empty" class="hidden text-center text-sm text-slate-400 py-16">등록된 단어가 없습니다. 위의 "+ 단어 추가"로 추가해 보세요.</p>
+</section>
+
+<section id="v-quiz" class="hidden">
+  <div id="qz-cfg" class="card p-6 max-w-sm mx-auto space-y-4 text-xs shadow-md">
+    <h2 id="qz-title" class="text-base font-black text-center"></h2>
+    <div class="space-y-3">
+      <div id="qz-w-folder"><label class="block font-bold mb-1">폴더</label><select id="q-folder" class="inp"></select></div>
+      <div id="qz-w-mode"><label class="block font-bold mb-1">문제 유형</label><select id="q-mode" class="inp"><option value="w2m">한자 단어 → 뜻</option><option value="m2w">뜻 → 한자 단어</option><option value="w2r">한자 단어 → 독음</option></select></div>
+      <div><label class="block font-bold mb-1">범위</label><select id="q-scope" class="inp"><option value="">전체</option><option value="u">미암기만</option><option value="b">북마크만</option></select></div>
+      <div><label class="block font-bold mb-1">문제 수</label><select id="q-n" class="inp"><option value="10" selected>10개</option><option value="20">20개</option><option value="30">30개</option><option value="50">50개</option><option value="all">전체</option></select></div>
+    </div>
+    <p id="qz-warn" class="hidden text-center text-rose-500 font-bold"></p>
+    <button id="qz-start" onclick="startQuiz()" class="w-full py-3 rounded-xl pri font-bold text-sm">퀴즈 시작</button>
+  </div>
+  <div id="qz-play" class="card p-6 max-w-md mx-auto space-y-3 hidden shadow-md">
+    <div class="flex justify-between text-xs text-slate-400"><span id="qz-prog"></span><span id="qz-score" class="text-indigo-500 font-bold"></span></div>
+    <div class="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden"><div id="qz-bar" class="bg-indigo-600 h-full transition-all" style="width:0"></div></div>
+    <div id="qz-hint" class="text-center text-[11px] font-bold text-slate-400 pt-2"></div>
+    <div id="qz-big"></div>
+    <div id="qz-ch" class="grid gap-2"></div>
+    <p class="hidden sm:block text-center text-[10px] text-slate-400">키보드 1~4로도 고를 수 있어요</p>
+  </div>
+  <div id="qz-res" class="card p-8 max-w-md mx-auto text-center space-y-4 hidden shadow-md">
+    <h2 class="text-2xl font-black">퀴즈 완료!</h2>
+    <p id="qz-final" class="text-4xl font-black text-indigo-500"></p>
+    <div id="qz-wrong" class="text-left space-y-1.5 text-xs"></div>
+    <div class="flex gap-2 text-sm font-bold">
+      <button id="qz-retry" onclick="retryWrong()" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-white">틀린 것만 다시</button>
+      <button onclick="prepQuiz()" class="flex-1 py-2.5 rounded-xl pri">처음부터</button>
+    </div>
+  </div>
+</section>
+</main>
+
+<div id="m-search" class="mdl"><div class="card w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+  <div class="p-4 border-b border-slate-200 dark:border-slate-800 space-y-2">
+    <div class="flex justify-between items-center"><h3 class="font-bold">한자 검색 <span id="src" class="text-[10px] text-emerald-500"></span></h3><button onclick="closeM('m-search')" class="text-slate-400 text-xl">✕</button></div>
+    <div class="flex gap-2"><input id="s-q" class="inp" placeholder="한자·음·뜻 (예: 水, 수, 물)" onkeydown="if(event.key==='Enter')doSearch()"><button onclick="doSearch()" class="b grn px-4 shrink-0">검색</button></div>
+    <label class="text-[11px] text-slate-400 flex items-center gap-2">저장할 폴더 <select id="s-folder" class="inp w-auto !py-1"></select></label>
+  </div>
+  <div id="s-res" class="p-4 overflow-y-auto space-y-2 min-h-[220px]"><p class="text-center text-xs text-slate-400 py-10">검색어를 입력하세요.</p></div>
+</div></div>
+
+<div id="m-detail" class="mdl"><div class="card w-full max-w-3xl max-h-[92vh] overflow-y-auto p-6 sm:p-8 shadow-2xl">
+  <div class="flex justify-between items-center mb-4"><span id="d-sub" class="text-sm text-slate-400"></span><button onclick="closeDetail()" class="text-slate-400 text-2xl">✕</button></div>
+  <div class="grid md:grid-cols-2 gap-8 items-center">
+    <div class="text-center space-y-5"><div id="d-char" class="hj text-8xl sm:text-9xl font-black text-indigo-500 leading-none"></div><div id="d-mean" class="space-y-2"></div><div id="d-words" class="text-sm text-slate-400"></div></div>
+    <div class="space-y-4 text-center">
+      <div class="relative mx-auto w-[260px] h-[260px] bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex items-center justify-center"><div id="hw" class="w-full h-full flex items-center justify-center relative"></div></div>
+      <div class="flex justify-center gap-2"><button onclick="HW&&HW.anim()" class="b bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 py-2.5">▶ 획순 재생</button><button onclick="HW&&HW.quiz()" class="b pri py-2.5">✍ 직접 쓰기</button></div>
+    </div>
+  </div>
+  <div class="flex items-center justify-between text-sm mt-6 pt-4 border-t border-slate-200 dark:border-slate-800">
+    <span class="text-slate-400">소속 폴더</span><select id="d-folder" onchange="moveItem(this.value)" class="inp w-auto !py-1.5"></select>
+    <button onclick="delItem()" class="text-rose-500 font-bold">삭제</button>
+  </div>
+</div></div>
+
+<div id="m-wd" class="mdl"><div class="card w-full max-w-3xl max-h-[92vh] overflow-y-auto p-6 sm:p-8 shadow-2xl">
+  <div class="flex justify-between items-center text-xl mb-4">
+    <span class="flex gap-4 text-slate-400"><button id="wd-mark" onclick="wdTog('mark')">★</button><button id="wd-learn" onclick="wdTog('learned')">✔</button></span>
+    <button onclick="closeWd()" class="text-slate-400 text-2xl">✕</button>
+  </div>
+  <div class="grid md:grid-cols-2 gap-8 items-start">
+    <div class="text-center space-y-4">
+      <div id="wd-word" class="hj text-6xl sm:text-7xl font-black text-indigo-500 break-all leading-tight"></div>
+      <div id="wd-read" class="text-lg font-bold"></div><div id="wd-mean"></div><div id="wd-ex" class="text-left space-y-2"></div>
+      <div class="pt-4 border-t border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-400">한자별로 보기 · 눌러서 선택</div>
+      <div id="wd-chars" class="flex flex-wrap justify-center gap-3"></div>
+    </div>
+    <div class="space-y-4 text-center">
+      <div id="wd-cinfo" class="space-y-2"></div>
+      <div class="relative mx-auto w-[260px] h-[260px] bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex items-center justify-center"><div id="ww" class="w-full h-full flex items-center justify-center relative"></div></div>
+      <div class="flex justify-center gap-2"><button onclick="WW&&WW.anim()" class="b bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 py-2.5">▶ 획순 재생</button><button onclick="WW&&WW.quiz()" class="b pri py-2.5">✍ 직접 쓰기</button></div>
+    </div>
+  </div>
+  <div class="flex items-center justify-between text-sm mt-6 pt-4 border-t border-slate-200 dark:border-slate-800">
+    <button onclick="wdEdit()" class="font-bold text-slate-500">✏️ 수정</button><button onclick="wdDel()" class="text-rose-500 font-bold">삭제</button>
+  </div>
+</div></div>
+
+<div id="m-fmenu" class="mdl"><div class="card w-full max-w-xs p-5 space-y-2 text-sm shadow-2xl">
+  <h3 id="fm-title" class="font-bold text-center truncate pb-1"></h3>
+  <button onclick="fmDo('rename')" class="w-full py-3 rounded-xl pri font-bold">✏️ 이름 변경</button>
+  <button onclick="fmDo('delete')" class="w-full py-3 rounded-xl red font-bold">🗑️ 삭제</button>
+  <button onclick="closeM('m-fmenu')" class="w-full py-3 rounded-xl g font-bold">닫기</button>
+</div></div>
+
+<div id="m-trash" class="mdl"><div class="card w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+  <div class="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center"><div><h3 class="font-bold">🗑️ 휴지통</h3><p class="text-[11px] text-slate-400">삭제한 항목은 30일 동안 보관돼요.</p></div><button onclick="closeM('m-trash')" class="text-slate-400 text-xl">✕</button></div>
+  <div id="trash-list" class="p-4 overflow-y-auto space-y-2 min-h-[200px]"></div>
+  <div class="p-3 border-t border-slate-200 dark:border-slate-800 text-right"><button onclick="emptyTrash()" class="b red py-2">휴지통 비우기</button></div>
+</div></div>
+
+<div id="m-word" class="mdl"><div class="card w-full max-w-lg p-7 space-y-5 text-sm shadow-2xl">
+  <div class="flex justify-between items-center"><h3 id="w-title" class="font-black text-lg">단어 추가</h3><button onclick="closeM('m-word')" class="text-slate-400 text-2xl">✕</button></div>
+  <div>
+    <div class="flex items-center justify-between mb-2"><label class="font-bold">단어 (한자)</label><button type="button" onclick="toggleFind()" class="text-xs font-bold text-indigo-500">🔍 한자 찾아서 넣기</button></div>
+    <input id="w-word" class="inp hj !py-3.5 !text-2xl" placeholder="예: 學校" onblur="autoFillWord()">
+    <div id="w-find-box" class="hidden mt-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
+      <div class="flex gap-2"><input id="w-find" class="inp" placeholder="음 또는 뜻 (예: 학, 배울)" oninput="findHanja()"><button type="button" onclick="wordBack()" class="b g shrink-0" title="마지막 한자 지우기">⌫</button></div>
+      <div id="w-chips" class="flex flex-wrap gap-2 max-h-44 overflow-y-auto"></div>
+    </div>
+  </div>
+  <div><label class="block font-bold mb-2">독음 <span class="font-normal text-slate-400 text-xs">(비우면 자동, 두음법칙은 직접 수정)</span></label><input id="w-read" class="inp !py-3.5 !text-base" placeholder="예: 학교"></div>
+  <div><label class="block font-bold mb-2">뜻</label><input id="w-mean" class="inp !py-3.5 !text-base" placeholder="예: 학생을 가르치는 곳" onkeydown="if(event.key==='Enter')saveWord()"></div>
+  <div><label class="block font-bold mb-2">예문 <span class="font-normal text-slate-400 text-xs">(선택 · 줄바꿈으로 여러 개)</span></label><textarea id="w-ex" rows="3" class="inp !py-3 !text-base" placeholder="예: 그는 學校에 다닌다."></textarea></div>
+  <button onclick="saveWord()" class="w-full py-4 rounded-xl pri font-bold text-base">저장</button>
+</div></div>
+
+<div id="m-reset" class="mdl" style="z-index:70"><div class="card w-full max-w-md p-6 space-y-4 text-sm shadow-2xl border-rose-500">
+  <div class="text-center text-4xl">⚠️</div>
+  <h3 class="font-black text-lg text-center text-rose-500">마지막 확인</h3>
+  <p class="text-center text-slate-600 dark:text-slate-300">아래 데이터가 <b class="text-rose-500">영구 삭제</b>되고 되돌릴 수 없어요.<br>휴지통에 있는 항목도 함께 사라져요.</p>
+  <div id="reset-info" class="rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 p-3 text-xs space-y-1"></div>
+  <p class="text-center text-xs text-slate-400">초기화하면 처음 설치한 상태(기본 한자 8개)로 돌아가요.</p>
+  <div class="flex gap-2"><button onclick="closeM('m-reset')" class="flex-1 py-3 rounded-xl g font-bold">취소</button><button onclick="doReset()" class="flex-1 py-3 rounded-xl red font-bold">동의하기</button></div>
+</div></div>
+
+<div id="m-dlg" class="mdl" style="z-index:70"><div class="card w-full max-w-sm p-5 space-y-3 text-sm shadow-2xl">
+  <h3 id="dlg-title" class="font-bold"></h3>
+  <p id="dlg-msg" class="text-xs text-slate-500 whitespace-pre-line"></p>
+  <input id="dlg-inp" class="inp hidden">
+  <div class="flex gap-2 text-xs"><button id="dlg-cancel" class="flex-1 py-2.5 rounded-xl g font-bold">취소</button><button id="dlg-ok" class="flex-1 py-2.5 rounded-xl text-white font-bold"></button></div>
+</div></div>
+
+<div id="toast" class="fixed bottom-5 right-5 z-[60] px-4 py-2.5 rounded-2xl bg-slate-900/90 text-white text-xs font-bold shadow-xl border border-slate-700 hidden"></div>
+
+<script>
+const DATA=[["佳","가","아름다울",""],["街","가","거리",""],["假","가","거짓/임시",""],["暇","가","틈/겨를",""],["價","가","값",""],["可","가","옳을",""],["歌","가","노래",""],["加","가","더할",""],["架","가","시렁",""],["家","가","집",""],["各","각","각각",""],["閣","각","집/누각",""],["却","각","물리칠",""],["脚","각","다리",""],["角","각","뿔",""],["覺","각","깨달을",""],["刻","각","새길/모질",""],["看","간","볼",""],["間","간","사이",""],["簡","간","간략할/대쪽",""],["干","간","방패",""],["刊","간","새길/책펴낼",""],["肝","간","간",""],["幹","간","줄기",""],["姦","간","간사할",""],["懇","간","간절할/정성",""],["渴","갈","목마를",""],["甘","감","달",""],["感","감","느낄",""],["減","감","덜",""],["敢","감","감히/함부로",""],["監","감","볼",""],["鑑","감","거울",""],["甲","갑","갑옷/첫째천간",""],["江","강","강",""],["強","강","강할",""],["剛","강","굳셀",""],["綱","강","벼리",""],["鋼","강","강철",""],["康","강","편안할",""],["講","강","욀",""],["降","강","내릴/항복할","항"],["改","개","고칠",""],["個","개","낱",""],["皆","개","다",""],["介","개","낄",""],["開","개","열",""],["慨","개","슬퍼할/분개할",""],["槪","개","대개",""],["蓋","개","덮을",""],["客","객","손/손님",""],["更","갱","다시/고칠","경"],["去","거","갈/없앨",""],["車","차","수레","거"],["居","거","살",""],["巨","거","클",""],["拒","거","막을",""],["距","거","떨어질",""],["擧","거","들",""],["據","거","근거/의거할",""],["件","건","사건/물건",""],["乾","건","하늘/마를",""],["建","건","세울",""],["健","건","굳셀/튼튼할",""],["乞","걸","빌",""],["傑","걸","뛰어날",""],["儉","검","검소할",""],["檢","검","검사할",""],["劍","검","칼",""],["格","격","격식",""],["激","격","격할",""],["擊","격","칠",""],["隔","격","사이뜰",""],["犬","견","개",""],["見","견","볼",""],["堅","견","굳을",""],["絹","견","비단",""],["肩","견","어깨",""],["牽","견","이끌",""],["遣","견","보낼",""],["結","결","맺을",""],["潔","결","깨끗할",""],["決","결","결단할/터질",""],["缺","결","이지러질",""],["兼","겸","겸할",""],["謙","겸","겸손할",""],["京","경","서울",""],["景","경","볕",""],["輕","경","가벼울",""],["經","경","글/지날",""],["徑","경","지름길",""],["敬","경","공경",""],["警","경","깨우칠",""],["驚","경","놀랄",""],["竟","경","마침내",""],["境","경","지경",""],["鏡","경","거울",""],["競","경","다툴",""],["頃","경","이랑/잠깐",""],["傾","경","기울",""],["耕","경","밭갈",""],["庚","경","천간",""],["慶","경","경사",""],["硬","경","굳을",""],["卿","경","벼슬",""],["計","계","셀/계획",""],["界","계","지경",""],["系","계","이을",""],["係","계","이어맬",""],["繼","계","이을",""],["繫","계","맬",""],["溪","계","시내",""],["鷄","계","닭",""],["戒","계","경계할",""],["械","계","기계",""],["桂","계","계수나무",""],["契","계","맺을",""],["季","계","계절",""],["階","계","섬돌",""],["癸","계","천간",""],["啓","계","열",""],["古","고","예/옛",""],["苦","고","쓸/괴로울",""],["固","고","굳을",""],["故","고","연고",""],["姑","고","시어미",""],["枯","고","마를",""],["告","고","알릴/고할",""],["高","고","높을",""],["稿","고","원고",""],["鼓","고","북",""],["庫","고","곳집",""],["顧","고","돌아볼",""],["孤","고","외로울",""],["考","고","생각할/상고할",""],["曲","곡","굽을",""],["谷","곡","골/계곡",""],["哭","곡","울",""],["穀","곡","곡식",""],["困","곤","곤할/곤란할",""],["坤","곤","땅",""],["骨","골","뼈",""],["工","공","장인",""],["功","공","공/공로",""],["空","공","빌/하늘",""],["攻","공","칠",""],["恐","공","두려울",""],["貢","공","바칠",""],["共","공","한가지",""],["供","공","이바지할",""],["恭","공","공손할",""],["公","공","공평할",""],["孔","공","구멍/성씨",""],["果","과","실과/열매",""],["課","과","과정/공부할",""],["科","과","과목",""],["過","과","지날/잘못할",""],["誇","과","자랑할",""],["寡","과","적을",""],["郭","곽","성곽/둘레",""],["官","관","벼슬",""],["管","관","대롱/주관할",""],["館","관","집",""],["貫","관","꿸",""],["慣","관","익숙할",""],["寬","관","너그러울",""],["冠","관","갓",""],["觀","관","볼",""],["關","관","빗장",""],["光","광","빛",""],["狂","광","미칠",""],["廣","광","넓을",""],["鑛","광","쇳돌",""],["掛","괘","걸",""],["塊","괴","흙덩이",""],["愧","괴","부끄러울",""],["壞","괴","무너질",""],["怪","괴","기이할",""],["橋","교","다리",""],["矯","교","바로잡을",""],["交","교","사귈",""],["校","교","학교",""],["較","교","견줄/비교할",""],["郊","교","들/성밖",""],["敎","교","가르칠",""],["巧","교","교묘할/공교할",""],["口","구","입",""],["句","구","글귀",""],["拘","구","잡을",""],["狗","구","개",""],["苟","구","구차할/진실로",""],["區","구","구분할/지경",""],["驅","구","몰",""],["九","구","아홉",""],["究","구","연구할",""],["具","구","갖출",""],["俱","구","함께",""],["求","구","구할",""],["救","구","구원할",""],["球","구","공",""],["龜","귀","거북","구/균"],["久","구","오랠",""],["丘","구","언덕",""],["舊","구","예",""],["懼","구","두려워할",""],["構","구","얽을",""],["國","국","나라",""],["局","국","판",""],["菊","국","국화",""],["軍","군","군사",""],["君","군","임금",""],["郡","군","고을",""],["群","군","무리",""],["屈","굴","굽힐",""],["弓","궁","활",""],["宮","궁","집",""],["窮","궁","다할",""],["券","권","문서",""],["卷","권","책",""],["拳","권","주먹",""],["權","권","권세",""],["勸","권","권할",""],["厥","궐","그",""],["軌","궤","바큇자국",""],["鬼","귀","귀신",""],["貴","귀","귀할",""],["歸","귀","돌아갈",""],["規","규","법",""],["叫","규","부르짖을",""],["糾","규","얽힐",""],["均","균","고를",""],["菌","균","버섯",""],["克","극","이길",""],["極","극","다할",""],["劇","극","연극/심할",""],["斤","근","도끼",""],["近","근","가까울",""],["勤","근","부지런할",""],["僅","근","겨우",""],["謹","근","삼갈",""],["根","근","뿌리",""],["金","금","쇠","김"],["錦","금","비단",""],["今","금","이제",""],["琴","금","거문고",""],["禁","금","금할",""],["禽","금","날짐승/새",""],["及","급","미칠",""],["級","급","등급",""],["給","급","줄",""],["急","급","급할",""],["肯","긍","즐길/긍정할",""],["己","기","몸",""],["記","기","기록할",""],["起","기","일어날",""],["忌","기","꺼릴",""],["紀","기","벼리",""],["企","기","꾀할",""],["氣","기","기운",""],["器","기","그릇",""],["其","기","그",""],["基","기","터",""],["期","기","기약",""],["欺","기","속일",""],["旗","기","깃발/기",""],["幾","기","몇/기미",""],["機","기","기계/틀",""],["畿","기","경기",""],["飢","기","주릴",""],["奇","기","기이할/기특할",""],["寄","기","부칠",""],["騎","기","말탈",""],["技","기","재주",""],["祈","기","빌",""],["旣","기","이미",""],["豈","기","어찌",""],["棄","기","버릴",""],["緊","긴","긴할",""],["吉","길","길할",""],["那","나","어찌",""],["諾","낙","허락할/대답할",""],["難","난","어려울",""],["暖","난","따뜻할",""],["男","남","사내",""],["南","남","남녘",""],["納","납","들일/바칠",""],["娘","낭","계집/아가씨",""],["內","내","안",""],["乃","내","이에",""],["奈","내","어찌",""],["耐","내","견딜",""],["女","녀","계집/여자",""],["年","년","해",""],["念","념","생각",""],["寧","녕","편안/어찌",""],["奴","노","종",""],["努","노","힘쓸",""],["怒","노","성낼",""],["農","농","농사",""],["腦","뇌","골",""],["惱","뇌","번뇌할",""],["能","능","능할",""],["泥","니","진흙",""],["多","다","많을",""],["茶","다","차","차"],["短","단","짧을",""],["丹","단","붉을",""],["旦","단","아침",""],["但","단","다만",""],["壇","단","단/제터",""],["檀","단","박달나무",""],["單","단","홑",""],["段","단","층계",""],["斷","단","끊을",""],["端","단","끝/바를",""],["團","단","모일/둥글",""],["達","달","통달할",""],["談","담","말씀",""],["淡","담","맑을",""],["擔","담","멜",""],["答","답","대답",""],["畓","답","논",""],["踏","답","밟을",""],["堂","당","집",""],["當","당","마땅",""],["黨","당","무리",""],["唐","당","당나라/당황할",""],["糖","당","엿","탕"],["大","대","큰",""],["帶","대","띠",""],["代","대","대신/시대",""],["貸","대","빌릴",""],["待","대","기다릴",""],["對","대","대할",""],["隊","대","무리",""],["臺","대","대",""],["德","덕","덕",""],["刀","도","칼",""],["到","도","이를",""],["倒","도","넘어질",""],["圖","도","그림",""],["道","도","길/도리",""],["導","도","인도할/이끌",""],["途","도","길",""],["塗","도","진흙",""],["逃","도","도망할",""],["挑","도","돋울",""],["桃","도","복숭아",""],["跳","도","뛸",""],["島","도","섬",""],["度","도","법도/정도",""],["渡","도","건널",""],["徒","도","무리",""],["都","도","도읍",""],["陶","도","질그릇",""],["盜","도","도둑",""],["稻","도","벼",""],["獨","독","홀로",""],["讀","독","읽을","두"],["督","독","감독할/살펴볼",""],["毒","독","독",""],["篤","독","도타울",""],["敦","돈","도타울",""],["豚","돈","돼지",""],["突","돌","갑자기",""],["同","동","한가지/같을",""],["洞","동","골","통"],["銅","동","구리",""],["東","동","동녘",""],["凍","동","얼",""],["冬","동","겨울",""],["童","동","아이",""],["動","동","움직일",""],["斗","두","말",""],["豆","두","콩",""],["頭","두","머리",""],["屯","둔","진칠",""],["鈍","둔","무딜",""],["得","득","얻을",""],["等","등","무리/등급",""],["登","등","오를",""],["燈","등","등불",""],["騰","등","오를",""],["羅","라","벌릴",""],["絡","락","이을",""],["落","락","떨어질",""],["樂","락","즐길","악"],["卵","란","알",""],["蘭","란","난초",""],["欄","란","난간",""],["亂","란","어지러울",""],["覽","람","볼",""],["濫","람","넘칠/퍼질",""],["浪","랑","물결",""],["郞","랑","사내",""],["廊","랑","사랑채/행랑",""],["來","래","올",""],["冷","랭","찰",""],["掠","략","노략질할",""],["略","략","간략할",""],["兩","량","두",""],["良","량","좋을/어질",""],["量","량","헤아릴",""],["糧","량","곡식/양식",""],["涼","량","서늘할",""],["諒","량","믿을/살펴알",""],["梁","량","들보",""],["旅","려","나그네",""],["慮","려","생각",""],["麗","려","고울",""],["勵","려","힘쓸",""],["力","력","힘",""],["歷","력","지날",""],["曆","력","책력",""],["練","련","익힐",""],["鍊","련","단련할/쇠불릴",""],["連","련","이을",""],["蓮","련","연꽃",""],["戀","련","그리워할",""],["憐","련","불쌍할",""],["聯","련","잇닿을",""],["列","렬","벌일",""],["烈","렬","매울",""],["裂","렬","찢을",""],["劣","렬","못날",""],["廉","렴","청렴할",""],["獵","렵","사냥",""],["令","령","하여금",""],["領","령","거느릴/우두머리",""],["嶺","령","고개",""],["零","령","떨어질/영",""],["靈","령","신령",""],["例","례","법식/본보기",""],["禮","례","예도",""],["隷","례","종/서체",""],["老","로","늙을",""],["勞","로","일할",""],["路","로","길",""],["露","로","이슬",""],["爐","로","화로",""],["鹿","록","사슴",""],["綠","록","푸를",""],["錄","록","기록할",""],["祿","록","녹",""],["論","론","논할",""],["弄","롱","희롱할",""],["賴","뢰","의뢰할/힘입을",""],["雷","뢰","우레",""],["了","료","마칠",""],["料","료","헤아릴",""],["僚","료","동료",""],["龍","룡","용",""],["淚","루","눈물",""],["漏","루","샐",""],["累","루","쌓을",""],["屢","루","여러",""],["樓","루","다락",""],["流","류","흐를",""],["柳","류","버들",""],["留","류","머무를",""],["類","류","무리",""],["六","륙","여섯",""],["陸","륙","뭍",""],["倫","륜","인륜",""],["輪","륜","바퀴",""],["律","률","법칙",""],["栗","률","밤",""],["率","률","비율","솔"],["隆","륭","높을",""],["陵","릉","언덕",""],["里","리","마을",""],["理","리","다스릴/이치",""],["裏","리","속",""],["利","리","이로울",""],["梨","리","배나무",""],["李","리","오얏/성씨",""],["吏","리","벼슬아치",""],["離","리","떠날",""],["履","리","밟을",""],["隣","린","이웃",""],["林","림","수풀",""],["臨","림","임할",""],["立","립","설",""],["馬","마","말",""],["麻","마","삼",""],["磨","마","갈",""],["莫","막","없을",""],["漠","막","넓을/사막",""],["幕","막","장막",""],["萬","만","일만",""],["滿","만","찰/가득찰",""],["漫","만","넓을/퍼질",""],["慢","만","게으를/거만할",""],["晩","만","늦을",""],["末","말","끝",""],["亡","망","망할",""],["忙","망","바쁠",""],["忘","망","잊을",""],["妄","망","망령될",""],["茫","망","아득할",""],["望","망","바랄",""],["罔","망","없을",""],["每","매","매양",""],["梅","매","매화",""],["妹","매","누이",""],["媒","매","중매",""],["埋","매","묻을",""],["買","매","살",""],["賣","매","팔",""],["麥","맥","보리",""],["脈","맥","줄기",""],["孟","맹","맏/성씨",""],["猛","맹","사나울",""],["盟","맹","맹세",""],["盲","맹","눈멀/소경",""],["眠","면","잠잘",""],["面","면","낯/얼굴",""],["免","면","면할",""],["勉","면","힘쓸",""],["綿","면","솜",""],["滅","멸","꺼질/멸할",""],["名","명","이름",""],["銘","명","새길",""],["命","명","목숨/명령",""],["明","명","밝을",""],["冥","명","어두울",""],["鳴","명","울",""],["母","모","어미",""],["侮","모","업신여길",""],["冒","모","무릅쓸",""],["毛","모","털",""],["貌","모","모양/얼굴",""],["某","모","아무",""],["謀","모","꾀할/도모할",""],["暮","모","저물",""],["募","모","뽑을",""],["慕","모","그리워할",""],["模","모","본뜰/모범",""],["木","목","나무",""],["目","목","눈",""],["睦","목","화목할",""],["牧","목","칠/기를",""],["沒","몰","빠질",""],["夢","몽","꿈",""],["蒙","몽","어릴",""],["卯","묘","토끼",""],["苗","묘","싹",""],["妙","묘","묘할",""],["墓","묘","무덤",""],["廟","묘","사당",""],["無","무","없을",""],["舞","무","춤출",""],["霧","무","안개",""],["武","무","호반",""],["戊","무","천간",""],["茂","무","무성할",""],["務","무","힘쓸",""],["貿","무","무역할",""],["墨","묵","먹",""],["默","묵","잠잠할",""],["門","문","문",""],["問","문","물을",""],["聞","문","들을",""],["文","문","글월",""],["勿","물","말",""],["物","물","물건",""],["米","미","쌀",""],["迷","미","미혹할",""],["未","미","아닐",""],["味","미","맛",""],["美","미","아름다울",""],["眉","미","눈썹",""],["尾","미","꼬리",""],["微","미","작을",""],["民","민","백성",""],["敏","민","민첩할",""],["憫","민","불쌍할/민망할",""],["密","밀","빽빽할/숨길",""],["蜜","밀","꿀",""],["朴","박","성/소박할",""],["拍","박","칠",""],["泊","박","머무를/배댈",""],["迫","박","핍박할/닥칠",""],["博","박","넓을",""],["薄","박","엷을",""],["半","반","반",""],["伴","반","짝",""],["反","반","돌이킬",""],["返","반","돌아올",""],["叛","반","배반할",""],["飯","반","밥",""],["班","반","나눌",""],["般","반","일반",""],["盤","반","소반/쟁반",""],["發","발","필",""],["拔","발","뽑을/뺄",""],["髮","발","터럭",""],["方","방","모/방향",""],["訪","방","찾을",""],["防","방","막을",""],["妨","방","방해할",""],["芳","방","꽃다울",""],["房","방","방",""],["放","방","놓을",""],["倣","방","본뜰",""],["傍","방","곁",""],["邦","방","나라",""],["拜","배","절",""],["排","배","밀칠",""],["輩","배","무리",""],["杯","배","잔",""],["倍","배","곱",""],["培","배","북돋을",""],["配","배","나눌/짝",""],["背","배","등",""],["白","백","흰",""],["伯","백","맏/말할",""],["百","백","일백",""],["番","번","차례",""],["飜","번","번역할",""],["繁","번","번성할/많을",""],["煩","번","번거로울",""],["伐","벌","칠",""],["罰","벌","벌할",""],["凡","범","무릇",""],["犯","범","범할",""],["範","범","법",""],["法","법","법",""],["壁","벽","벽",""],["碧","벽","푸를",""],["辯","변","말씀",""],["辨","변","분별할",""],["變","변","변할",""],["邊","변","가",""],["別","별","나눌/다를",""],["兵","병","병사",""],["竝","병","나란히",""],["屛","병","병풍",""],["丙","병","남녘/천간",""],["病","병","병",""],["步","보","걸음",""],["保","보","지킬",""],["報","보","갚을/알릴",""],["普","보","넓을",""],["譜","보","족보",""],["補","보","기울/도울",""],["寶","보","보배",""],["卜","복","점",""],["伏","복","엎드릴",""],["福","복","복",""],["服","복","옷",""],["腹","복","배",""],["複","복","겹칠",""],["復","복","회복할","부"],["覆","복","덮을/뒤집을",""],["本","본","근본",""],["封","봉","봉할",""],["峯","봉","봉우리",""],["蜂","봉","벌",""],["逢","봉","만날",""],["奉","봉","받들",""],["鳳","봉","봉황새",""],["父","부","아비",""],["夫","부","지아비/사나이",""],["扶","부","도울",""],["否","부","아닐",""],["付","부","줄",""],["附","부","붙을",""],["府","부","관청/마을",""],["腐","부","썩을",""],["符","부","부호",""],["富","부","부자/넉넉할",""],["副","부","버금",""],["部","부","떼",""],["赴","부","갈/나아갈",""],["婦","부","지어미",""],["負","부","질",""],["賦","부","부세",""],["浮","부","뜰",""],["簿","부","문서",""],["北","북","북녘","배"],["分","분","나눌",""],["粉","분","가루",""],["紛","분","어지러울",""],["奔","분","달릴",""],["憤","분","성낼",""],["墳","분","무덤",""],["奮","분","떨칠",""],["不","불","아닐","부"],["佛","불","부처",""],["拂","불","떨칠",""],["朋","붕","벗",""],["崩","붕","무너질",""],["比","비","견줄",""],["批","비","비평할",""],["非","비","아닐",""],["悲","비","슬플",""],["飛","비","날",""],["祕","비","숨길",""],["肥","비","살찔",""],["卑","비","낮을",""],["碑","비","비석",""],["婢","비","계집종",""],["妃","비","왕비",""],["鼻","비","코",""],["備","비","갖출",""],["費","비","쓸",""],["貧","빈","가난할",""],["賓","빈","손님",""],["頻","빈","자주",""],["氷","빙","얼음",""],["聘","빙","부를",""],["士","사","선비",""],["仕","사","벼슬/섬길",""],["社","사","모일",""],["舍","사","집",""],["捨","사","버릴",""],["死","사","죽을",""],["四","사","넉",""],["思","사","생각",""],["司","사","맡을",""],["詞","사","말",""],["辭","사","말씀",""],["射","사","쏠",""],["謝","사","사례할",""],["詐","사","속일",""],["事","사","일/섬길",""],["史","사","사기/역사",""],["使","사","하여금/시킬",""],["似","사","같을/닮을",""],["蛇","사","긴뱀",""],["巳","사","뱀",""],["祀","사","제사",""],["沙","사","모래",""],["邪","사","간사할",""],["査","사","조사할",""],["寺","사","절",""],["絲","사","실",""],["私","사","사사로울",""],["賜","사","줄",""],["寫","사","베낄",""],["斯","사","이",""],["師","사","스승",""],["斜","사","비낄",""],["削","삭","깎을",""],["朔","삭","초하루",""],["山","산","메/산",""],["産","산","낳을/만들",""],["算","산","셈",""],["散","산","흩을",""],["殺","살","죽일","쇄"],["三","삼","석",""],["上","상","위",""],["尙","상","높을/오히려",""],["常","상","항상/떳떳할",""],["賞","상","상줄",""],["償","상","갚을",""],["嘗","상","맛볼/일찍",""],["裳","상","치마",""],["商","상","장사",""],["相","상","서로",""],["想","상","생각",""],["霜","상","서리",""],["象","상","코끼리/모양",""],["像","상","형상",""],["狀","상","형상","장"],["床","상","상",""],["桑","상","뽕나무",""],["詳","상","자세할",""],["祥","상","상서로울",""],["傷","상","다칠",""],["喪","상","잃을/죽을",""],["塞","새","변방","색"],["色","색","빛",""],["索","색","찾을","삭"],["生","생","날",""],["西","서","서녘",""],["序","서","차례",""],["書","서","글",""],["敍","서","펼",""],["徐","서","천천히",""],["緖","서","실마리",""],["暑","서","더울",""],["署","서","관청",""],["恕","서","용서할",""],["庶","서","여러",""],["逝","서","갈",""],["誓","서","맹세할",""],["夕","석","저녁",""],["石","석","돌",""],["昔","석","옛",""],["惜","석","아낄",""],["席","석","자리",""],["析","석","쪼갤/가를",""],["釋","석","풀",""],["仙","선","신선",""],["先","선","먼저",""],["善","선","착할/좋을",""],["宣","선","베풀",""],["船","선","배",""],["線","선","줄",""],["鮮","선","고울",""],["旋","선","돌",""],["禪","선","선",""],["選","선","가릴",""],["舌","설","혀",""],["雪","설","눈",""],["說","설","말씀","세"],["設","설","베풀",""],["涉","섭","건널",""],["攝","섭","이끌/당길",""],["成","성","이룰",""],["城","성","재",""],["盛","성","성할",""],["誠","성","정성",""],["姓","성","성씨",""],["性","성","성품",""],["星","성","별",""],["省","성","살필","생"],["聖","성","성인/성스러울",""],["聲","성","소리",""],["世","세","인간/세상",""],["洗","세","씻을",""],["細","세","가늘",""],["稅","세","세금",""],["勢","세","형세",""],["歲","세","해",""],["小","소","작을",""],["少","소","적을/젊을",""],["消","소","사라질",""],["召","소","부를",""],["昭","소","밝을",""],["所","소","바",""],["訴","소","하소연할",""],["笑","소","웃음",""],["素","소","흴/바탕",""],["掃","소","쓸",""],["燒","소","사를",""],["疏","소","트일",""],["蔬","소","나물",""],["蘇","소","되살아날/깨어날",""],["騷","소","떠들",""],["束","속","묶을",""],["速","속","빠를",""],["續","속","이을",""],["俗","속","풍속",""],["粟","속","조",""],["屬","속","속할/붙을",""],["孫","손","손자",""],["損","손","덜",""],["松","송","소나무",""],["訟","송","송사할",""],["頌","송","기릴",""],["誦","송","욀",""],["送","송","보낼",""],["刷","쇄","인쇄할",""],["鎖","쇄","쇠사슬",""],["衰","쇠","쇠할",""],["水","수","물",""],["囚","수","가둘",""],["手","수","손",""],["搜","수","찾을",""],["受","수","받을",""],["授","수","줄",""],["收","수","거둘",""],["數","수","셈",""],["修","수","닦을",""],["守","수","지킬",""],["首","수","머리",""],["須","수","모름지기",""],["垂","수","드리울",""],["睡","수","잠잘",""],["誰","수","누구",""],["雖","수","비록",""],["壽","수","목숨",""],["帥","수","장수",""],["殊","수","다를",""],["秀","수","빼어날",""],["愁","수","근심",""],["樹","수","나무/세울",""],["獸","수","짐승",""],["輸","수","보낼",""],["需","수","쓰일/구할",""],["遂","수","드디어/이룰",""],["隨","수","따를",""],["叔","숙","아재비",""],["淑","숙","맑을",""],["宿","숙","잠잘","수"],["孰","숙","누구",""],["熟","숙","익을",""],["肅","숙","엄숙할",""],["旬","순","열흘",""],["殉","순","따라죽을",""],["循","순","돌",""],["巡","순","돌",""],["順","순","순할",""],["純","순","순수할",""],["瞬","순","눈깜짝일",""],["脣","순","입술",""],["戌","술","개",""],["術","술","재주",""],["述","술","펼",""],["崇","숭","높을",""],["習","습","익힐",""],["拾","습","주울","십"],["濕","습","젖을",""],["襲","습","엄습할",""],["昇","승","오를",""],["承","승","이을",""],["乘","승","탈",""],["勝","승","이길",""],["僧","승","중",""],["示","시","보일",""],["視","시","볼",""],["市","시","저자",""],["是","시","이/옳을",""],["時","시","때",""],["侍","시","모실",""],["詩","시","시",""],["試","시","시험",""],["矢","시","화살",""],["施","시","베풀",""],["始","시","처음/비로소",""],["食","식","먹을",""],["飾","식","꾸밀",""],["式","식","법",""],["植","식","심을",""],["識","식","알",""],["息","식","쉴",""],["身","신","몸",""],["臣","신","신하",""],["申","신","납/원숭이",""],["伸","신","펼",""],["神","신","귀신",""],["辛","신","매울",""],["新","신","새",""],["愼","신","삼갈",""],["晨","신","새벽",""],["信","신","믿을",""],["失","실","잃을",""],["室","실","집",""],["實","실","열매",""],["心","심","마음",""],["深","심","깊을",""],["審","심","살필",""],["甚","심","심할",""],["尋","심","찾을",""],["十","십","열",""],["雙","쌍","두",""],["氏","씨","성씨",""],["兒","아","아이",""],["我","아","나",""],["餓","아","굶주릴",""],["牙","아","어금니",""],["芽","아","싹",""],["雅","아","맑을",""],["亞","아","버금",""],["惡","악","나쁠","오"],["岳","악","큰산",""],["雁","안","기러기",""],["岸","안","언덕",""],["安","안","편안",""],["案","안","책상/생각",""],["顔","안","얼굴",""],["謁","알","알현할",""],["眼","안","눈",""],["暗","암","어두울",""],["巖","암","바위",""],["押","압","누를",""],["壓","압","누를",""],["央","앙","가운데",""],["殃","앙","재앙",""],["仰","앙","우러를",""],["愛","애","사랑",""],["哀","애","슬플",""],["涯","애","물가",""],["厄","액","재앙",""],["額","액","이마",""],["也","야","어조사",""],["耶","야","어조사",""],["夜","야","밤",""],["野","야","들",""],["弱","약","약할",""],["約","약","맺을",""],["若","약","만약/같을",""],["藥","약","약",""],["躍","약","뛸",""],["羊","양","양",""],["洋","양","큰바다",""],["養","양","기를",""],["樣","양","모양",""],["陽","양","볕",""],["揚","양","날릴",""],["楊","양","버들",""],["壤","양","흙덩이",""],["讓","양","사양할",""],["魚","어","물고기",""],["漁","어","고기잡을",""],["語","어","말씀",""],["於","어","어조사",""],["御","어","거느릴/어거할",""],["抑","억","누를",""],["億","억","억",""],["憶","억","생각",""],["言","언","말씀",""],["焉","언","어조사",""],["嚴","엄","엄할",""],["業","업","업/일",""],["余","여","나",""],["餘","여","남을",""],["如","여","같을",""],["汝","여","너",""],["予","여","나",""],["與","여","줄/더불",""],["輿","여","수레",""],["亦","역","또",""],["易","역","바꿀","이"],["逆","역","거스를",""],["役","역","부릴",""],["疫","역","전염병",""],["域","역","지경",""],["譯","역","번역할",""],["驛","역","역/역참",""],["然","연","그럴",""],["燃","연","탈",""],["煙","연","연기",""],["燕","연","제비",""],["宴","연","잔치",""],["演","연","펼",""],["沿","연","물따라갈",""],["鉛","연","납",""],["延","연","늘일",""],["硏","연","갈",""],["軟","연","연할",""],["緣","연","인연",""],["悅","열","기쁠",""],["閱","열","볼/검열할",""],["熱","열","더울",""],["炎","염","불꽃",""],["染","염","물들",""],["鹽","염","소금",""],["葉","엽","잎",""],["永","영","길",""],["泳","영","헤엄칠",""],["詠","영","읊을",""],["英","영","꽃부리",""],["榮","영","영화로울",""],["營","영","경영할",""],["映","영","비칠",""],["影","영","그림자",""],["迎","영","맞을/맞이할",""],["豫","예","미리",""],["銳","예","날카로울",""],["譽","예","기릴",""],["藝","예","재주",""],["五","오","다섯",""],["吾","오","나",""],["悟","오","깨달을",""],["午","오","낮",""],["汚","오","더러울",""],["傲","오","거만할",""],["烏","오","까마귀",""],["嗚","오","울",""],["娛","오","즐길",""],["誤","오","그르칠",""],["玉","옥","구슬",""],["屋","옥","집",""],["獄","옥","옥",""],["溫","온","따뜻할",""],["翁","옹","늙은이",""],["擁","옹","낄",""],["瓦","와","기와",""],["臥","와","누울",""],["完","완","온전할",""],["緩","완","느릴",""],["曰","왈","가로/말할",""],["王","왕","임금",""],["往","왕","갈",""],["外","외","바깥",""],["畏","외","두려울",""],["要","요","요긴할/구할",""],["腰","요","허리",""],["搖","요","흔들",""],["謠","요","노래",""],["遙","요","멀",""],["浴","욕","목욕할",""],["欲","욕","하고자할",""],["慾","욕","욕심",""],["辱","욕","욕될",""],["容","용","얼굴",""],["勇","용","날랠",""],["用","용","쓸",""],["庸","용","떳떳할",""],["雨","우","비",""],["牛","우","소",""],["于","우","어조사",""],["宇","우","집",""],["又","우","또",""],["友","우","벗",""],["右","우","오른",""],["尤","우","더욱",""],["偶","우","짝",""],["遇","우","만날",""],["愚","우","어리석을",""],["憂","우","근심",""],["優","우","넉넉할/뛰어날",""],["羽","우","깃",""],["郵","우","우편",""],["云","운","이를/말할",""],["雲","운","구름",""],["運","운","옮길/운수",""],["韻","운","운",""],["雄","웅","수컷",""],["元","원","으뜸",""],["院","원","집",""],["原","원","언덕",""],["源","원","근원",""],["願","원","원할/바랄",""],["員","원","인원",""],["圓","원","둥글",""],["園","원","동산",""],["遠","원","멀",""],["援","원","도울",""],["怨","원","원망할",""],["月","월","달",""],["越","월","뛰어넘을",""],["位","위","자리",""],["爲","위","될/할",""],["僞","위","거짓",""],["偉","위","클",""],["衛","위","지킬",""],["圍","위","에워쌀",""],["違","위","어긋날/어길",""],["緯","위","세로/씨줄",""],["危","위","위태할",""],["委","위","맡길",""],["威","위","위엄",""],["慰","위","위로할",""],["胃","위","밥통",""],["謂","위","말할/이를",""],["有","유","있을",""],["由","유","말미암을",""],["油","유","기름",""],["酉","유","닭/술그릇",""],["猶","유","오히려/같을",""],["幼","유","어릴",""],["幽","유","그윽할",""],["唯","유","오직",""],["惟","유","생각할",""],["維","유","벼리",""],["乳","유","젖",""],["柔","유","부드러울",""],["誘","유","꾈",""],["裕","유","넉넉할",""],["儒","유","선비",""],["愈","유","나을",""],["悠","유","멀",""],["遊","유","다닐/놀",""],["遺","유","남길",""],["肉","육","고기",""],["育","육","기를",""],["閏","윤","윤달",""],["潤","윤","윤택할",""],["恩","은","은혜",""],["銀","은","은",""],["隱","은","숨을",""],["乙","을","새",""],["音","음","소리",""],["吟","음","읊을",""],["陰","음","그늘",""],["飮","음","마실",""],["淫","음","음란할",""],["泣","읍","울",""],["邑","읍","고을",""],["應","응","응할",""],["凝","응","엉길",""],["疑","의","의심",""],["衣","의","옷",""],["依","의","의지할",""],["矣","의","어조사",""],["宜","의","마땅",""],["義","의","옳을/의로울",""],["儀","의","거동",""],["議","의","의논할",""],["意","의","뜻",""],["醫","의","의원",""],["二","이","두",""],["而","이","말이을",""],["以","이","써",""],["已","이","이미/뿐",""],["耳","이","귀",""],["夷","이","오랑캐",""],["異","이","다를",""],["移","이","옮길",""],["益","익","더할",""],["翼","익","날개",""],["人","인","사람",""],["仁","인","어질",""],["因","인","인할",""],["姻","인","혼인",""],["印","인","도장",""],["忍","인","참을",""],["認","인","알",""],["引","인","끌",""],["寅","인","범/동방",""],["一","일","한",""],["日","일","해/날",""],["逸","일","편안할",""],["壬","임","천간",""],["任","임","맡길",""],["賃","임","품삯",""],["入","입","들",""],["子","자","아들",""],["字","자","글자",""],["者","자","사람/놈",""],["自","자","스스로",""],["姊","자","누이",""],["姿","자","모양",""],["恣","자","방자할",""],["資","자","재물",""],["紫","자","자줏빛",""],["玆","자","이",""],["慈","자","사랑",""],["刺","자","찌를",""],["作","작","지을",""],["昨","작","어제",""],["酌","작","술부을",""],["爵","작","벼슬",""],["殘","잔","남을/죽일",""],["暫","잠","잠깐",""],["潛","잠","잠길",""],["雜","잡","섞일",""],["長","장","긴/어른",""],["帳","장","장막",""],["張","장","베풀",""],["章","장","글",""],["障","장","막을",""],["掌","장","손바닥",""],["場","장","마당",""],["腸","장","창자",""],["丈","장","어른/길이단위",""],["壯","장","장할/씩씩할",""],["莊","장","장중할",""],["裝","장","꾸밀",""],["將","장","장수",""],["獎","장","장려할",""],["粧","장","단장할",""],["墻","장","담",""],["藏","장","감출",""],["臟","장","오장",""],["葬","장","장사지낼",""],["才","재","재주",""],["材","재","재목",""],["財","재","재물",""],["在","재","있을",""],["再","재","두/다시",""],["栽","재","심을",""],["裁","재","마를",""],["載","재","실을",""],["哉","재","어조사",""],["宰","재","재상",""],["災","재","재앙",""],["爭","쟁","다툴",""],["低","저","낮을",""],["抵","저","막을",""],["底","저","밑",""],["貯","저","쌓을",""],["著","저","지을/나타날",""],["赤","적","붉을",""],["跡","적","발자취",""],["的","적","과녁",""],["滴","적","물방울",""],["摘","적","딸",""],["適","적","알맞을",""],["敵","적","대적할",""],["籍","적","문서",""],["積","적","쌓을",""],["績","적","길쌈",""],["賊","적","도적",""],["寂","적","고요할",""],["田","전","밭",""],["典","전","법/책",""],["全","전","온전",""],["前","전","앞",""],["展","전","펼",""],["殿","전","큰집/전각",""],["專","전","오로지",""],["傳","전","전할",""],["轉","전","구를",""],["錢","전","돈",""],["戰","전","싸움",""],["電","전","번개",""],["切","절","끊을","체"],["絶","절","끊을",""],["折","절","꺾을",""],["節","절","마디/절제할",""],["竊","절","훔칠",""],["占","점","점칠/차지할",""],["店","점","가게",""],["點","점","점",""],["漸","점","점점",""],["接","접","이을",""],["蝶","접","나비",""],["丁","정","고무래/장정",""],["亭","정","정자",""],["停","정","머무를",""],["訂","정","바로잡을",""],["頂","정","정수리",""],["貞","정","곧을",""],["井","정","우물",""],["定","정","정할",""],["正","정","바를",""],["政","정","정사",""],["征","정","칠",""],["整","정","가지런할",""],["程","정","길/과정",""],["廷","정","조정",""],["庭","정","뜰",""],["淨","정","깨끗할",""],["情","정","뜻",""],["靜","정","고요할",""],["精","정","정밀할",""],["弟","제","아우",""],["第","제","차례",""],["題","제","제목",""],["提","제","끌",""],["堤","제","둑",""],["祭","제","제사",""],["際","제","가/사이",""],["除","제","덜",""],["帝","제","임금",""],["制","제","절제할",""],["製","제","만들/지을",""],["諸","제","여러",""],["齊","제","가지런할",""],["濟","제","건널",""],["鳥","조","새",""],["早","조","일찍",""],["朝","조","아침",""],["潮","조","조수",""],["燥","조","마를",""],["照","조","비칠",""],["祖","조","할아비",""],["組","조","짤",""],["租","조","조세",""],["助","조","도울",""],["造","조","지을",""],["操","조","잡을",""],["條","조","가지",""],["調","조","고를",""],["弔","조","조상할/위로할",""],["兆","조","억조/조짐",""],["足","족","발/만족할",""],["族","족","겨레",""],["存","존","있을",""],["尊","존","높을",""],["卒","졸","병사/마칠",""],["拙","졸","못날",""],["種","종","씨",""],["鍾","종","쇠북",""],["宗","종","마루",""],["終","종","끝/마칠",""],["從","종","좇을",""],["縱","종","세로",""],["左","좌","왼",""],["佐","좌","도울",""],["坐","좌","앉을",""],["座","좌","자리",""],["罪","죄","허물",""],["主","주","주인",""],["住","주","살",""],["注","주","부을",""],["柱","주","기둥",""],["朱","주","붉을",""],["株","주","그루",""],["珠","주","구슬",""],["走","주","달릴",""],["宙","주","집",""],["晝","주","낮",""],["奏","주","연주할/아뢸",""],["周","주","두루/주나라",""],["舟","주","배",""],["州","주","고을",""],["洲","주","물가",""],["酒","주","술",""],["鑄","주","쇠불릴",""],["竹","죽","대나무",""],["俊","준","준걸",""],["準","준","기준/법도",""],["遵","준","좇을",""],["中","중","가운데",""],["仲","중","버금",""],["重","중","무거울",""],["衆","중","무리",""],["卽","즉","곧",""],["曾","증","일찍",""],["增","증","더할",""],["憎","증","미워할",""],["贈","증","줄",""],["證","증","증거",""],["蒸","증","찔",""],["症","증","증세",""],["之","지","어조사/그것/갈",""],["止","지","그칠",""],["地","지","땅",""],["池","지","못/연못",""],["知","지","알",""],["智","지","지혜",""],["志","지","뜻",""],["誌","지","기록할",""],["只","지","다만",""],["支","지","지탱할",""],["枝","지","가지",""],["至","지","이를/지극할",""],["紙","지","종이",""],["持","지","가질",""],["指","지","가리킬/손가락",""],["遲","지","더딜",""],["織","직","짤",""],["職","직","직분",""],["直","직","곧을",""],["辰","진","별","신"],["振","진","떨칠",""],["震","진","우레",""],["盡","진","다할",""],["眞","진","참",""],["鎭","진","진압할",""],["進","진","나아갈",""],["陣","진","진칠",""],["陳","진","베풀/묵을",""],["珍","진","보배",""],["質","질","바탕","지"],["疾","질","병/미워할",""],["秩","질","차례",""],["姪","질","조카",""],["集","집","모을",""],["執","집","잡을",""],["徵","징","부를",""],["懲","징","징계할",""],["且","차","또",""],["此","차","이",""],["次","차","버금",""],["借","차","빌릴",""],["差","차","다를/어긋날",""],["着","착","붙을/입을",""],["錯","착","섞일/어긋날",""],["捉","착","잡을",""],["贊","찬","도울",""],["讚","찬","기릴",""],["察","찰","살필",""],["參","참","참여할","삼"],["慘","참","참혹할",""],["慙","참","부끄러울",""],["昌","창","창성할",""],["唱","창","부를",""],["暢","창","화창할",""],["倉","창","곳집",""],["創","창","비롯할",""],["蒼","창","푸를",""],["窓","창","창문",""],["採","채","캘",""],["菜","채","나물",""],["彩","채","채색",""],["債","채","빚",""],["冊","책","책",""],["策","책","꾀",""],["責","책","꾸짖을/맡을",""],["妻","처","아내",""],["處","처","곳",""],["尺","척","자/길이단위",""],["斥","척","물리칠",""],["拓","척","넓힐","탁"],["戚","척","친척/겨레",""],["天","천","하늘",""],["川","천","내",""],["千","천","일천",""],["泉","천","샘",""],["淺","천","얕을",""],["賤","천","천할",""],["踐","천","밟을",""],["薦","천","천거할",""],["遷","천","옮길",""],["哲","철","밝을",""],["徹","철","통할",""],["鐵","철","쇠",""],["尖","첨","뾰족할",""],["添","첨","더할",""],["妾","첩","아내",""],["靑","청","푸를",""],["淸","청","맑을",""],["晴","청","갤",""],["請","청","청할",""],["聽","청","들을",""],["廳","청","관청",""],["替","체","바꿀",""],["體","체","몸",""],["滯","체","막힐",""],["逮","체","잡을",""],["遞","체","갈릴/갈마들",""],["草","초","풀",""],["初","초","처음",""],["招","초","부를",""],["超","초","뛰어넘을",""],["肖","초","닮을",""],["抄","초","뽑을",""],["秒","초","분초",""],["礎","초","주춧돌",""],["促","촉","재촉할",""],["燭","촉","촛불",""],["觸","촉","닿을",""],["寸","촌","마디",""],["村","촌","마을",""],["銃","총","총",""],["總","총","다/모두",""],["聰","총","귀밝을",""],["最","최","가장",""],["催","최","재촉할",""],["秋","추","가을",""],["抽","추","뽑을",""],["推","추","밀",""],["追","추","쫓을/따를",""],["醜","추","추할/더러울",""],["丑","축","소",""],["逐","축","쫓을",""],["祝","축","빌",""],["縮","축","줄일",""],["畜","축","가축",""],["蓄","축","모을",""],["築","축","쌓을",""],["春","춘","봄",""],["出","출","날",""],["充","충","채울",""],["忠","충","충성",""],["蟲","충","벌레",""],["衝","충","찌를",""],["取","취","가질",""],["趣","취","뜻",""],["吹","취","불",""],["臭","취","냄새",""],["就","취","나아갈",""],["醉","취","취할",""],["側","측","곁",""],["測","측","헤아릴",""],["層","층","층",""],["治","치","다스릴",""],["値","치","값",""],["置","치","둘",""],["恥","치","부끄러울",""],["致","치","이를",""],["齒","치","이",""],["則","칙","법칙","즉"],["親","친","친할/어버이",""],["七","칠","일곱",""],["漆","칠","옻",""],["針","침","바늘",""],["沈","침","잠길","심"],["枕","침","베개",""],["浸","침","잠길/적실",""],["侵","침","침노할",""],["寢","침","잠잘",""],["稱","칭","일컬을",""],["快","쾌","쾌할",""],["他","타","다를",""],["打","타","칠",""],["妥","타","온당할",""],["墮","타","떨어질",""],["卓","탁","높을/뛰어날",""],["托","탁","맡길",""],["濁","탁","흐릴",""],["濯","탁","씻을",""],["炭","탄","숯",""],["彈","탄","탄알",""],["歎","탄","탄식할",""],["誕","탄","거짓/낳을",""],["脫","탈","벗을",""],["奪","탈","빼앗을",""],["探","탐","찾을",""],["貪","탐","탐할",""],["塔","탑","탑",""],["湯","탕","끓을",""],["太","태","클/처음",""],["泰","태","클",""],["殆","태","거의",""],["怠","태","게으를",""],["態","태","모습",""],["宅","택","집","댁"],["擇","택","가릴",""],["澤","택","못",""],["土","토","흙",""],["吐","토","토할",""],["討","토","칠",""],["通","통","통할",""],["痛","통","아플",""],["統","통","거느릴",""],["退","퇴","물러날",""],["投","투","던질",""],["透","투","사무칠",""],["鬪","투","싸움",""],["特","특","특별할",""],["罷","파","마칠",""],["波","파","물결",""],["破","파","깨뜨릴",""],["頗","파","자못",""],["派","파","갈래",""],["播","파","뿌릴",""],["把","파","잡을",""],["板","판","널",""],["版","판","판목",""],["販","판","팔",""],["判","판","판단할",""],["八","팔","여덟",""],["貝","패","조개",""],["敗","패","패할",""],["片","편","조각",""],["便","편","편할",""],["篇","편","책",""],["編","편","엮을",""],["遍","편","두루",""],["偏","편","치우칠",""],["平","평","평평할",""],["評","평","평할",""],["閉","폐","닫을",""],["廢","폐","폐할",""],["肺","폐","허파",""],["弊","폐","해질",""],["幣","폐","화폐",""],["蔽","폐","덮을",""],["布","포","베/펼",""],["浦","포","개",""],["捕","포","잡을",""],["包","포","쌀",""],["抱","포","안을",""],["胞","포","세포",""],["飽","포","배부를",""],["幅","폭","폭",""],["暴","폭","사나울",""],["爆","폭","불터질",""],["表","표","겉",""],["票","표","표할",""],["標","표","표",""],["漂","표","떠다닐",""],["品","품","물건",""],["風","풍","바람",""],["豊","풍","풍성할/풍년",""],["皮","피","가죽",""],["彼","피","저",""],["疲","피","피곤할",""],["被","피","입을",""],["避","피","피할",""],["必","필","반드시",""],["匹","필","짝",""],["筆","필","붓",""],["畢","필","마칠",""],["下","하","아래",""],["夏","하","여름",""],["賀","하","하례할",""],["河","하","물",""],["何","하","어찌",""],["荷","하","멜",""],["學","학","배울",""],["鶴","학","학",""],["旱","한","가물",""],["汗","한","땀",""],["漢","한","한나라/한수",""],["韓","한","나라/한국",""],["恨","한","한/원한/한할",""],["限","한","막을",""],["閑","한","한가할",""],["寒","한","찰/추울",""],["割","할","벨",""],["咸","함","다/모두",""],["陷","함","빠질",""],["含","함","머금을",""],["合","합","합할",""],["恒","항","항상",""],["項","항","항목",""],["抗","항","겨룰",""],["航","항","배",""],["巷","항","마을",""],["港","항","항구",""],["海","해","바다",""],["害","해","해로울",""],["解","해","풀",""],["奚","해","어찌",""],["亥","해","돼지",""],["該","해","갖출",""],["核","핵","씨",""],["行","행","다닐",""],["幸","행","다행",""],["向","향","향할",""],["享","향","누릴",""],["香","향","향기",""],["鄕","향","시골",""],["響","향","울릴",""],["許","허","허락할",""],["虛","허","빌",""],["軒","헌","집",""],["憲","헌","법",""],["獻","헌","드릴",""],["險","험","험할",""],["驗","험","시험",""],["革","혁","가죽/바꿀",""],["現","현","나타날",""],["玄","현","검을",""],["絃","현","줄",""],["賢","현","어질",""],["縣","현","고을",""],["懸","현","매달",""],["顯","현","드러낼",""],["穴","혈","동굴",""],["血","혈","피",""],["嫌","혐","싫어할",""],["協","협","도울/화할",""],["脅","협","위협할/옆구리",""],["兄","형","형/맏",""],["亨","형","형통할",""],["形","형","모양",""],["刑","형","형벌",""],["螢","형","반딧불",""],["衡","형","저울대",""],["惠","혜","은혜",""],["慧","혜","지혜",""],["兮","혜","어조사",""],["乎","호","어조사",""],["呼","호","부를",""],["好","호","좋을",""],["胡","호","오랑캐/되",""],["湖","호","호수",""],["浩","호","넓을",""],["戶","호","집/문",""],["虎","호","범",""],["號","호","이름",""],["豪","호","호걸",""],["毫","호","터럭",""],["護","호","도울",""],["互","호","서로",""],["或","혹","혹",""],["惑","혹","미혹될",""],["昏","혼","저물",""],["婚","혼","혼인할",""],["混","혼","섞일",""],["魂","혼","넋",""],["忽","홀","갑자기/무시할",""],["洪","홍","넓을",""],["鴻","홍","큰기러기",""],["弘","홍","넓을",""],["紅","홍","붉을",""],["火","화","불",""],["禾","화","벼",""],["和","화","화할/조화로울",""],["化","화","될",""],["花","화","꽃",""],["貨","화","재물",""],["話","화","말씀",""],["畫","화","그림",""],["華","화","빛날",""],["禍","화","재앙",""],["確","확","굳을",""],["擴","확","넓힐",""],["穫","확","거둘",""],["患","환","근심",""],["丸","환","둥글",""],["歡","환","기쁠",""],["換","환","바꿀",""],["環","환","고리",""],["還","환","돌아올",""],["活","활","살",""],["黃","황","누를",""],["皇","황","임금",""],["荒","황","거칠",""],["況","황","상황",""],["回","회","돌",""],["會","회","모일",""],["悔","회","뉘우칠",""],["懷","회","품을",""],["獲","획","얻을",""],["劃","획","그을",""],["橫","횡","가로",""],["孝","효","효도",""],["效","효","본받을",""],["曉","효","새벽",""],["後","후","뒤",""],["厚","후","두터울",""],["侯","후","제후",""],["候","후","기후/기다릴",""],["訓","훈","가르칠",""],["毁","훼","헐/훼손할",""],["揮","휘","휘두를",""],["輝","휘","빛날",""],["休","휴","쉴",""],["携","휴","이끌",""],["凶","흉","흉할",""],["胸","흉","가슴",""],["黑","흑","검을",""],["吸","흡","마실",""],["興","흥","일",""],["喜","희","기쁠",""],["希","희","바랄",""],["稀","희","드물",""],["戲","희","놀이",""]];
+const DB=DATA.map(([char,sound,meaning,alt])=>({char,sound,meaning:meaning.split('/').join(', '),alt}));
+const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const show=(id,on)=>$(id).classList.toggle('hidden',!on);
+const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const hx=d=>({m:String(d.meaning||'').split(', ').filter(Boolean),s:[d.sound,...String(d.alt||'').split('/').filter(Boolean)]});
+const hxHtml=(d,big)=>{const h=hx(d),sz=big?'text-base px-3.5 py-1.5':'text-xs px-2 py-0.5';
+  return `<div class="flex flex-wrap justify-center gap-1.5 mb-1">${h.m.map(m=>`<span class="${sz} rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300 font-bold">${esc(m)}</span>`).join('')}</div><div class="${big?'text-base':'text-xs'} text-slate-500 dark:text-slate-400">음 <b class="text-slate-800 dark:text-slate-100">${h.s.map(esc).join(' · ')}</b></div>`};
+const toTop=()=>{window.scrollTo({top:0,left:0,behavior:'instant'});document.documentElement.scrollTop=0};
+function toast(m){const t=$('toast');t.textContent=m;t.classList.remove('hidden');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.add('hidden'),2200)}
+function closeM(id){$(id).classList.remove('open')}
+
+/* ---------- 저장소 (기존 데이터 그대로 이어서 사용) ---------- */
+const KEY='HANJA_MASTER_PRO_V6';
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+let S;try{S=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){S=null}
+const firstRun=!S;
+S=S||{api:'',folders:[{id:'f1',name:'기본 한자'},{id:'f2',name:'중요 한자'}],items:[]};
+S.api=S.api||'';S.folders=S.folders||[];S.items=S.items||[];S.words=S.words||[];
+S.trash=(S.trash||[]).filter(t=>Date.now()-t.at<30*864e5);
+const fixItem=i=>{if(i.char==='車'&&i.sound==='거'){i.sound='차';i.alt='거'}if(i.char==='戱')i.char='戲'};
+S.items.forEach(fixItem);S.trash.forEach(t=>{if(t.type==='item')fixItem(t.data)});
+
+/* ---------- 화면 이동 ---------- */
+const nav={sec:null,tab:'study'};
+let activeFolderId=null,isSelectMode=false,quizTok=0,folderEdit=false;const selectedIds=new Set();
+function go(sec,tab='study'){
+  quizTok++;nav.sec=sec;nav.tab=tab;folderEdit=false;
+  if(!sec||tab!=='study'){activeFolderId=sec?activeFolderId:null;resetSelect()}
+  toTop();render();if(sec&&tab==='quiz')prepQuiz();
+}
+function render(){
+  const{sec,tab}=nav,study=tab==='study';
+  show('v-home',!sec);show('sec-bar',!!sec);
+  show('v-hanja',sec==='hanja'&&study);show('v-words',sec==='words'&&study);show('v-quiz',!!sec&&!study);
+  const cr=$('crumb');cr.classList.toggle('hidden',!sec);cr.textContent=sec?'› '+(sec==='hanja'?'한자':'단어'):'';
+  if(sec){
+    $('st-study').textContent=sec==='hanja'?'📂 한자 카드':'📝 단어장';
+    $('st-study').classList.toggle('on',study);$('st-quiz').classList.toggle('on',!study);
+    show('sec-add-wrap',study);$('sec-add').textContent=sec==='hanja'?'+ 한자 추가':'+ 단어 추가';
+  }
+  if(!sec)renderHome();else if(sec==='hanja'&&study)renderHanja();else if(sec==='words'&&study)renderWords();
+}
+function secAdd(){nav.sec==='hanja'?openSearch():openWord()}
+
+/* ---------- 홈 ---------- */
+const stat=l=>{const k=l.filter(x=>x.learned).length;return{n:l.length,l:k,p:l.length?Math.round(k/l.length*100):0}};
+function renderHome(){
+  const card=(sec,glyph,title,desc,st,unit,grad,bar,txt)=>`<button onclick="go('${sec}')" class="card text-left p-6 hover:border-indigo-400 hover:shadow-xl">
+    <div class="flex items-center gap-4"><div class="hj w-16 h-16 shrink-0 rounded-2xl ${grad} text-white text-4xl font-black grid place-items-center">${glyph}</div>
+    <div class="min-w-0"><h3 class="text-xl font-black">${title}</h3><p class="text-xs text-slate-400 mt-0.5">${desc}</p></div><span class="ml-auto text-slate-300 text-2xl">›</span></div>
+    <div class="mt-5 space-y-1.5"><div class="flex justify-between text-xs font-bold"><span class="text-slate-500">${st.n?`${st.n}${unit} 저장됨`:`아직 ${title}가 없어요`}</span><span class="${txt}">${st.n?st.p+'% 암기':'시작해 보세요'}</span></div>
+    <div class="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden"><div class="${bar} h-full" style="width:${st.p}%"></div></div></div></button>`;
+  $('home-cards').innerHTML=card('hanja','漢','한자','카드 · 폴더 · 획순 쓰기 · 퀴즈',stat(S.items),'자','bg-gradient-to-br from-indigo-500 to-violet-600','bg-indigo-600','text-indigo-600 dark:text-indigo-400')+
+    card('words','語','단어','한자 단어 · 독음 · 한자별 보기 · 퀴즈',stat(S.words),'개','bg-gradient-to-br from-emerald-500 to-teal-600','bg-emerald-500','text-emerald-500');
+  const uh=S.items.filter(i=>!i.learned).length,uw=S.words.filter(w=>!w.learned).length;
+  const q=(sec,n,l)=>`<button onclick="quick('${sec}')" class="px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-400">⚡ ${l} <span class="text-indigo-500">${n}</span></button>`;
+  $('home-quick').innerHTML=(uh?q('hanja',uh,'미암기 한자 퀴즈'):'')+(uw&&S.words.length>=4?q('words',uw,'미암기 단어 퀴즈'):'');
+}
+function quick(sec){go(sec,'quiz');$('q-scope').value='u';$('q-n').value='10';startQuiz()}
+
+/* ---------- 공용 대화상자 ---------- */
+function dlg({title,msg='',input=false,value='',ok='확인',danger=false}){
+  return new Promise(res=>{
+    $('dlg-title').textContent=title;$('dlg-msg').textContent=msg;$('dlg-msg').classList.toggle('hidden',!msg);
+    const inp=$('dlg-inp'),b=$('dlg-ok'),c=$('dlg-cancel'),m=$('m-dlg');
+    inp.classList.toggle('hidden',!input);inp.value=value;b.textContent=ok;
+    b.className='flex-1 py-2.5 rounded-xl text-white font-bold '+(danger?'bg-rose-600':'bg-indigo-600');
+    m.classList.add('open');if(input)setTimeout(()=>inp.focus(),30);
+    const done=v=>{m.classList.remove('open');b.onclick=c.onclick=inp.onkeydown=null;res(v)};
+    b.onclick=()=>done(input?inp.value:true);c.onclick=()=>done(input?null:false);
+    inp.onkeydown=e=>{if(e.key==='Enter')b.click()};
+  });
+}
+function toggleTheme(){S.dark=document.documentElement.classList.toggle('dark');save()}
+async function setApi(){
+  const u=await dlg({title:'한자 API 서버 주소',msg:'Cloudflare Worker URL\n비우면 내장 DB만 사용합니다.',input:true,value:S.api||'',ok:'저장'});
+  if(u===null)return;S.api=u.trim().replace(/\/$/,'');save();apiBtn();toast(S.api?'서버 주소 저장됨':'내장 DB 모드');
+}
+function apiBtn(){const b=$('api-btn');if(b)b.textContent=S.api?'🟢 서버':'⚪ 내장 DB'}
+
+/* ---------- 한자 · 폴더 ---------- */
+function add(r,fid){
+  if(!r||S.items.some(i=>i.char===r.char))return false;
+  S.items.push({id:'h'+Date.now()+Math.random().toString(36).slice(2,6),char:r.char,sound:r.sound,meaning:r.meaning,alt:r.alt||'',radical:r.radical||'',strokes:r.strokes||0,words:r.words||[],learned:false,mark:false,folder:fid});
+  return true;
+}
+const folderOpts=(all,sel)=>(all?'<option value="">전체 폴더</option>':'')+S.folders.map(f=>`<option value="${f.id}" ${f.id===sel?'selected':''}>${esc(f.name)}</option>`).join('');
+function fillFolders(){$('s-folder').innerHTML=folderOpts(false);$('batch-target-folder').innerHTML=folderOpts(false)}
+async function addFolder(){
+  const n=((await dlg({title:'새 폴더',msg:'폴더 이름을 입력하세요.',input:true,ok:'만들기'}))||'').trim();if(!n)return;
+  S.folders.push({id:'f'+Date.now(),name:n});save();fillFolders();render();toast(`'${n}' 폴더가 생성되었습니다.`);
+}
+async function renameFolder(fid){
+  const f=S.folders.find(x=>x.id===fid);if(!f)return;
+  const n=((await dlg({title:'폴더 이름 수정',input:true,value:f.name,ok:'저장'}))||'').trim();
+  if(!n||n===f.name)return;f.name=n;save();fillFolders();render();toast('폴더 이름이 수정되었습니다.');
+}
+async function deleteFolder(fid){
+  if(S.folders.length<=1)return toast('최소 1개의 폴더는 유지되어야 합니다.');
+  const f=S.folders.find(x=>x.id===fid);if(!f)return;
+  const cnt=S.items.filter(i=>i.folder===fid).length,target=S.folders.find(x=>x.id!==fid);
+  const ask=`'${f.name}' 폴더를 정말 삭제할까요?`+(cnt?`\n\n안에 한자 ${cnt}개가 있으며, 삭제하면 '${target.name}' 폴더로 옮겨집니다.`:'');
+  if(!await dlg({title:'폴더 삭제',msg:ask,ok:'삭제',danger:true}))return;
+  if(cnt>0){
+    const t=((await dlg({title:'한 번 더 확인',msg:`삭제하려면 폴더 이름 '${f.name}' 을(를) 그대로 입력하세요.`,input:true,ok:'삭제',danger:true}))||'').trim();
+    if(t!==f.name)return toast('폴더 이름이 일치하지 않아 삭제를 취소했습니다.');
+  }
+  toTrash('folder',{folder:{...f},itemIds:S.items.filter(i=>i.folder===fid).map(i=>i.id)});
+  S.items.forEach(i=>{if(i.folder===fid)i.folder=target.id});
+  S.folders=S.folders.filter(x=>x.id!==fid);if(activeFolderId===fid)activeFolderId=null;
+  save();fillFolders();render();toast(`'${f.name}' 폴더를 휴지통으로 옮겼어요.`);
+}
+function selectFolder(fid){toTop();activeFolderId=fid;resetSelect();$('f-q').value='';$('f-status').value='';render()}
+function openFolderView(){toTop();activeFolderId=null;resetSelect();render()}
+
+/* ---------- 폴더 수정 모드: 탭 = 이름 변경/삭제, 꾹 눌러 끌기 = 순서 변경 ---------- */
+let fmId=null,drag=null,lpT=null,justDragged=false;
+function toggleFolderEdit(){folderEdit=!folderEdit;renderFolderGrid();if(folderEdit)toast('카드를 탭하면 수정·삭제, 꾹 눌러 끌면 순서 변경')}
+function folderTap(fid){
+  if(!folderEdit)return selectFolder(fid);
+  if(justDragged||fid==='all')return;
+  fmId=fid;$('fm-title').textContent=S.folders.find(f=>f.id===fid)?.name||'';$('m-fmenu').classList.add('open');
+}
+function fmDo(a){const id=fmId;closeM('m-fmenu');a==='rename'?renameFolder(id):deleteFolder(id)}
+function progressCard(onclick,icon,title,sub,items,color,extra,badge){
+  const st=stat(items);
+  return `<div ${onclick?`onclick="${onclick}"`:''} class="card relative p-5 pt-7 text-center ${onclick?'cursor-pointer hover:border-indigo-400 hover:shadow-xl':''} ${extra}">
+    <div class="absolute top-3 right-3">${badge}</div><div class="text-4xl mb-2">${icon}</div><h3 class="text-base font-black truncate">${title}</h3><p class="text-xs text-slate-400 mt-1">${sub}</p>
+    <div class="mt-4 space-y-1.5"><div class="flex justify-center gap-2 text-xs font-bold"><span class="text-slate-600 dark:text-slate-400">${st.n}개 한자</span><span class="${color.text}">· ${st.p}% 암기</span></div>
+    <div class="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden"><div class="${color.bar} h-full" style="width:${st.p}%"></div></div></div></div>`;
+}
+function renderFolderGrid(){
+  const indigo={text:'text-indigo-600 dark:text-indigo-400',bar:'bg-indigo-600'},green={text:'text-emerald-500',bar:'bg-emerald-500'};
+  const b=$('btn-edit');b.textContent=folderEdit?'✔ 완료':'✏ 폴더 수정';b.classList.toggle('sel-on',folderEdit);
+  const ed=folderEdit?'fdrag ring-1 ring-indigo-300 dark:ring-indigo-700':'';
+  let html=progressCard(folderEdit?'':"folderTap('all')",'📚','전체 한자','저장된 모든 한자',S.items,indigo,'border-2 border-indigo-500/30','<span class="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/60 px-2.5 py-1 rounded-full">전체</span>');
+  S.folders.forEach(f=>{html+=progressCard(`folderTap('${f.id}')`,'📂',esc(f.name),'폴더',S.items.filter(i=>i.folder===f.id),green,ed,folderEdit?'<span class="text-xs">✏️</span>':'')});
+  const g=$('folder-grid');g.innerHTML=html;
+  [...g.children].forEach((el,k)=>{el.dataset.fid=k?S.folders[k-1].id:'all';if(folderEdit&&k)bindDrag(el)});
+}
+const pt=e=>(e.touches&&e.touches[0])||(e.changedTouches&&e.changedTouches[0])||e;
+function bindDrag(el){
+  const st=e=>{
+    if(e.type==='mousedown'&&e.button)return;
+    const p=pt(e);drag={el,x:p.clientX,y:p.clientY,on:false};clearTimeout(lpT);
+    lpT=setTimeout(()=>{if(!drag)return;drag.on=true;el.classList.add('opacity-60','scale-95');navigator.vibrate&&navigator.vibrate(25)},400);
+  };
+  el.addEventListener('mousedown',st);el.addEventListener('touchstart',st,{passive:true});el.addEventListener('contextmenu',e=>e.preventDefault());
+}
+function dragMove(e){
+  if(!drag)return;const p=pt(e);
+  if(!drag.on){if(Math.hypot(p.clientX-drag.x,p.clientY-drag.y)>10){clearTimeout(lpT);drag=null}return}
+  if(e.cancelable)e.preventDefault();
+  const t=document.elementFromPoint(p.clientX,p.clientY)?.closest('#folder-grid [data-fid]');
+  if(!t||t===drag.el||t.dataset.fid==='all')return;
+  const kids=[...$('folder-grid').children];kids.indexOf(t)>kids.indexOf(drag.el)?t.after(drag.el):t.before(drag.el);
+}
+function dragEnd(){
+  clearTimeout(lpT);if(!drag)return;const d=drag;drag=null;if(!d.on)return;
+  d.el.classList.remove('opacity-60','scale-95');
+  const ids=[...$('folder-grid').children].map(c=>c.dataset.fid).filter(x=>x!=='all');
+  const next=ids.map(id=>S.folders.find(f=>f.id===id)).filter(Boolean);
+  if(next.length===S.folders.length){S.folders=next;save();fillFolders()}
+  justDragged=true;setTimeout(()=>justDragged=false,300);toast('순서가 변경되었어요.');
+}
+['mousemove','touchmove'].forEach(t=>document.addEventListener(t,dragMove,{passive:false}));
+['mouseup','touchend','touchcancel'].forEach(t=>document.addEventListener(t,dragEnd));
+
+/* ---------- 다중 선택 ---------- */
+function resetSelect(){isSelectMode=false;selectedIds.clear();$('batch-bar').classList.add('hidden');$('batch-bar').classList.remove('flex');$('btn-select-mode').classList.remove('sel-on')}
+function toggleSelectMode(){
+  isSelectMode=!isSelectMode;selectedIds.clear();$('btn-select-mode').classList.toggle('sel-on',isSelectMode);
+  $('batch-bar').classList.toggle('hidden',!isSelectMode);$('batch-bar').classList.toggle('flex',isSelectMode);updateBatchCount();renderItems();
+}
+function toggleSelectItem(id,e){if(e)e.stopPropagation();selectedIds.has(id)?selectedIds.delete(id):selectedIds.add(id);updateBatchCount();renderItems()}
+function selectAll(c){if(c)getFilteredItems().forEach(i=>selectedIds.add(i.id));else selectedIds.clear();updateBatchCount();renderItems()}
+function updateBatchCount(){$('batch-count').textContent=`${selectedIds.size}개 선택됨`;const v=getFilteredItems();$('chk-all').checked=v.length>0&&v.every(i=>selectedIds.has(i.id))}
+function batchMoveFolder(){
+  if(!selectedIds.size)return toast('선택된 한자가 없습니다.');
+  const fid=$('batch-target-folder').value,name=S.folders.find(f=>f.id===fid)?.name||'';let n=0;
+  S.items.forEach(i=>{if(selectedIds.has(i.id)){i.folder=fid;n++}});save();selectedIds.clear();updateBatchCount();renderItems();toast(`${n}개 한자가 '${name}' 폴더로 이동되었습니다.`);
+}
+function batchToggleLearned(st){
+  if(!selectedIds.size)return toast('선택된 한자가 없습니다.');const n=selectedIds.size;
+  S.items.forEach(i=>{if(selectedIds.has(i.id))i.learned=st});save();renderItems();toast(`${n}개 한자가 ${st?'암기 완료':'미암기'} 처리되었습니다.`);
+}
+async function batchDelete(){
+  if(!selectedIds.size)return toast('선택된 한자가 없습니다.');const n=selectedIds.size;
+  if(!await dlg({title:'한자 삭제',msg:`${n}개 한자를 삭제할까요?`,ok:'삭제',danger:true}))return;
+  S.items.filter(i=>selectedIds.has(i.id)).forEach(i=>toTrash('item',i));S.items=S.items.filter(i=>!selectedIds.has(i.id));
+  selectedIds.clear();save();updateBatchCount();renderItems();toast(`${n}개 한자를 휴지통으로 옮겼어요.`);
+}
+
+/* ---------- 한자 목록 ---------- */
+function renderHanja(){const fm=activeFolderId===null;show('folder-view',fm);show('item-view',!fm);fm?renderFolderGrid():renderItems()}
+function dueumVariants(s){
+  const out=new Set([s]);if(!s)return[...out];const c=s.charCodeAt(0);if(c<0xAC00||c>0xD7A3)return[...out];
+  const code=c-0xAC00,ini=Math.floor(code/588),med=Math.floor((code%588)/28),fin=code%28;
+  const mk=i=>out.add(String.fromCharCode(0xAC00+i*588+med*28+fin)+s.slice(1));
+  if(ini===11&&[2,6,7,12,17,20].includes(med)){mk(2);mk(5)}
+  if(ini===2&&[0,1,8,11,13,18].includes(med))mk(5);
+  return[...out];
+}
+function getFilteredItems(){
+  const q=$('f-q').value.trim(),st=$('f-status').value,vs=q?dueumVariants(q):[];
+  return S.items.filter(i=>(activeFolderId==='all'||i.folder===activeFolderId)&&(st!=='u'||!i.learned)&&(st!=='l'||i.learned)&&(st!=='b'||i.mark)&&(!q||i.char.includes(q)||i.meaning.includes(q)||vs.some(v=>i.sound.includes(v)||(i.alt||'').includes(v))));
+}
+function renderItems(){
+  $('active-folder-title').textContent=activeFolderId==='all'?'📚 전체 한자':(S.folders.find(f=>f.id===activeFolderId)?.name||'폴더');
+  const L=getFilteredItems();$('cnt').textContent='총 '+L.length+'개';show('empty',L.length===0);
+  $('grid').innerHTML=L.map(i=>{const sel=selectedIds.has(i.id);
+    return `<div onclick="${isSelectMode?`toggleSelectItem('${i.id}')`:`openDetail('${i.id}')`}" class="card p-3 cursor-pointer hover:border-indigo-400 hover:shadow-lg relative ${sel?'card-selected':''}">
+      <div class="flex justify-between items-center text-slate-400 text-sm mb-1" onclick="event.stopPropagation()">${isSelectMode
+        ?`<input type="checkbox" ${sel?'checked':''} onchange="toggleSelectItem('${i.id}',event)" class="w-4 h-4 accent-indigo-600">`
+        :`<button onclick="tog('${i.id}','mark')" class="${i.mark?'text-amber-400':''}">★</button><button onclick="tog('${i.id}','learned')" class="${i.learned?'text-emerald-500 font-bold':''}">✔</button>`}</div>
+      <div class="hj text-5xl font-black text-center text-indigo-600 dark:text-indigo-400 py-2 select-none">${esc(i.char)}</div>
+      <div class="text-center text-xs font-bold truncate">${esc(hx(i).m[0]||'')} ${esc(i.sound)}</div>
+      <div class="text-center text-[10px] text-slate-400 mt-1 truncate">${i.radical?'부수 '+esc(i.radical):''}${i.strokes?' · '+i.strokes+'획':''}</div></div>`}).join('');
+  if(isSelectMode)updateBatchCount();
+}
+function tog(id,k){const i=S.items.find(x=>x.id===id);if(!i)return;i[k]=!i[k];save();renderItems()}
+
+/* ---------- 한자 검색 / 추가 ---------- */
+let found=[];
+function localSearch(q){
+  q=q.normalize('NFKC');const cj=q.match(/[㐀-鿿]/g);
+  if(cj)return[...new Set(cj)].map(c=>DB.find(d=>d.char===c)).filter(Boolean);
+  const vs=dueumVariants(q);
+  const rank=d=>{let b=9;const alts=(d.alt||'').split('/');
+    vs.forEach((v,k)=>{const p=k?.5:0;if(d.sound===v)b=Math.min(b,p);else if(alts.includes(v))b=Math.min(b,1+p)});
+    const ms=d.meaning.split(', ');if(ms.includes(q))b=Math.min(b,2);else if(ms.some(m=>m.startsWith(q)))b=Math.min(b,2.5);else if(d.meaning.includes(q))b=Math.min(b,3);return b};
+  return DB.map(d=>[rank(d),d]).filter(x=>x[0]<9).sort((a,b)=>a[0]-b[0]).map(x=>x[1]).slice(0,60);
+}
+async function doSearch(){
+  const q=$('s-q').value.trim();if(!q)return;
+  $('s-res').innerHTML='<p class="text-center text-xs text-slate-400 py-10">검색 중...</p>';
+  let list=[],src='내장 DB';
+  if(S.api){try{const r=await fetch(S.api+'/search?q='+encodeURIComponent(q));
+    if(r.ok){list=((await r.json()).results||[]).map(x=>({...x,meaning:String(x.meaning||'').split('/').join(', ')}));if(list.length)src='서버'}}catch(e){}}
+  if(!list.length)list=localSearch(q);
+  found=list;$('src').textContent='· '+src;showRes();
+}
+function showRes(){
+  const el=$('s-res');if(!found.length){el.innerHTML='<p class="text-center text-xs text-slate-400 py-10">결과가 없습니다.</p>';return}
+  const n=found.filter(r=>!S.items.some(i=>i.char===r.char)).length;
+  el.innerHTML=(n>1?`<div class="text-right pb-2"><button onclick="addAll()" class="b pri">${n}자 선택된 폴더에 일괄 추가</button></div>`:'')+found.map((r,k)=>{
+    const ex=S.items.some(i=>i.char===r.char);
+    const sub=[r.alt?'다른 음 '+esc(r.alt):'',r.radical?'부수 '+esc(r.radical):'',r.strokes?r.strokes+'획':'',(r.words||[]).length?esc(r.words.join(', ')):''].filter(Boolean).join(' · ');
+    return `<div class="flex items-center justify-between gap-3 p-3 rounded-2xl border border-slate-200 dark:border-slate-800">
+      <div class="flex items-center gap-3 min-w-0"><div class="hj text-3xl font-black text-indigo-500 w-10 text-center">${esc(r.char)}</div>
+      <div class="min-w-0"><div class="font-bold text-sm">${esc(r.meaning)} ${esc(r.sound)}</div><div class="text-[11px] text-slate-400 truncate">${sub}</div></div></div>
+      ${ex?'<span class="text-xs text-slate-400 px-2 py-1 rounded bg-slate-200 dark:bg-slate-800">추가됨</span>':`<button onclick="addOne(${k})" class="b grn shrink-0">추가</button>`}</div>`}).join('');
+}
+function addOne(k){const fid=$('s-folder').value||S.folders[0].id;if(add(found[k],fid)){save();render();showRes();toast(`'${found[k].char}' 추가 완료`)}}
+function addAll(){const fid=$('s-folder').value||S.folders[0].id;let n=0;found.forEach(r=>{if(add(r,fid))n++});save();render();showRes();toast(`${n}개 한자 추가 완료`)}
+function openSearch(){fillFolders();if(activeFolderId&&activeFolderId!=='all')$('s-folder').value=activeFolderId;$('m-search').classList.add('open');$('s-q').focus()}
+
+/* ---------- 획순 위젯 ---------- */
+function makeWriter(boxId){
+  const box=$(boxId);let w=null,tok=0,ctx=null,free=false,drawing=false;
+  const dark=()=>document.documentElement.classList.contains('dark');
+  function fallback(char,msg){
+    if(box.querySelector('[data-fb]'))return;w=null;free=false;
+    box.innerHTML=`<div data-fb class="hj text-[150px] font-black text-indigo-600 dark:text-indigo-400 select-none transition-opacity leading-none">${esc(char)}</div>
+      <div class="absolute bottom-2 inset-x-0 text-center pointer-events-none"><span class="text-[10px] text-slate-400 bg-slate-200/80 dark:bg-slate-800/80 px-2.5 py-0.5 rounded-full">${esc(msg||'획순 미지원 한자')}</span></div>
+      <canvas width="260" height="260" class="absolute inset-0 touch-none pointer-events-none"></canvas>`;
+    const cv=box.querySelector('canvas');ctx=cv.getContext('2d');
+    const pos=e=>{const r=cv.getBoundingClientRect(),p=e.touches?e.touches[0]:e;return{x:p.clientX-r.left,y:p.clientY-r.top}};
+    const start=e=>{if(!free)return;drawing=true;const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y)};
+    const draw=e=>{if(!drawing||!free)return;e.preventDefault();const p=pos(e);ctx.strokeStyle=dark()?'#818cf8':'#4f46e5';ctx.lineWidth=4;ctx.lineCap='round';ctx.lineJoin='round';ctx.lineTo(p.x,p.y);ctx.stroke()};
+    const stop=()=>{drawing=false};
+    cv.addEventListener('mousedown',start);cv.addEventListener('mousemove',draw);cv.addEventListener('mouseup',stop);cv.addEventListener('mouseleave',stop);
+    cv.addEventListener('touchstart',start,{passive:false});cv.addEventListener('touchmove',draw,{passive:false});cv.addEventListener('touchend',stop);
+  }
+  return{
+    show(char){
+      const t=++tok;w=null;free=false;ctx=null;box.innerHTML='';
+      try{w=HanziWriter.create(box,char,{width:260,height:260,padding:10,strokeColor:dark()?'#818cf8':'#4f46e5',outlineColor:dark()?'#334155':'#cbd5e1',showOutline:true,strokeAnimationSpeed:1.3,delayBetweenStrokes:200,onLoadCharDataError:()=>{if(t===tok)fallback(char)}});w.animateCharacter()}
+      catch(e){fallback(char,'획순 기능을 불러오지 못했어요');return}
+      if(typeof HanziWriter.loadCharacterData==='function')HanziWriter.loadCharacterData(char).catch(()=>{if(t===tok)fallback(char)});
+    },
+    anim(){
+      if(w){w.cancelQuiz&&w.cancelQuiz();w.animateCharacter();return}
+      free=false;if(ctx)ctx.clearRect(0,0,260,260);
+      const c=box.querySelector('[data-fb]');if(c)c.style.opacity='1';const cv=box.querySelector('canvas');if(cv)cv.classList.add('pointer-events-none');
+      toast('획순 애니메이션을 지원하지 않는 한자입니다.');
+    },
+    quiz(){
+      if(w){w.quiz({showOutline:true,outlineColor:dark()?'#334155':'#cbd5e1',strokeColor:dark()?'#818cf8':'#4f46e5',onComplete:()=>toast('🎉 정확하게 잘 쓰셨습니다!')});toast('흐릿한 한자 선을 따라 덧써보세요!');return}
+      free=true;if(ctx)ctx.clearRect(0,0,260,260);
+      const c=box.querySelector('[data-fb]');if(c)c.style.opacity='0.2';const cv=box.querySelector('canvas');if(cv)cv.classList.remove('pointer-events-none');
+      toast('연하게 표시된 한자 위에 직접 덧써보세요!');
+    },
+    stop(){tok++}
+  };
+}
+
+/* ---------- 한자 상세 ---------- */
+let curId=null,HW=null,WW=null;
+function openDetail(id){
+  const i=S.items.find(x=>x.id===id);if(!i)return;curId=id;
+  $('d-sub').textContent=[i.radical?'부수 '+i.radical:'',i.strokes?i.strokes+'획':''].filter(Boolean).join(' · ');
+  $('d-char').textContent=i.char;$('d-mean').innerHTML=hxHtml(i,true);
+  $('d-words').textContent=(i.words||[]).length?'관련 단어: '+i.words.join(', '):'';
+  $('d-folder').innerHTML=folderOpts(false,i.folder);$('m-detail').classList.add('open');
+  HW=HW||makeWriter('hw');HW.show(i.char);
+}
+function closeDetail(){if(HW)HW.stop();closeM('m-detail');render()}
+function moveItem(f){const i=S.items.find(x=>x.id===curId);if(!i)return;i.folder=f;save();toast('폴더가 변경되었습니다.')}
+async function delItem(){
+  if(!await dlg({title:'한자 삭제',msg:'이 한자를 삭제할까요?',ok:'삭제',danger:true}))return;
+  const it=S.items.find(x=>x.id===curId);if(it)toTrash('item',it);S.items=S.items.filter(x=>x.id!==curId);save();closeDetail();toast('한자를 휴지통으로 옮겼어요.');
+}
+
+/* ---------- 단어 ---------- */
+const wReveal=new Set();let editWid=null,curWid=null,wdIdx=0,readAuto=true;
+const autoRead=w=>[...w].map(c=>DB.find(x=>x.char===c)?.sound||'').join('');
+const breakdown=w=>[...w].map(c=>{const d=DB.find(x=>x.char===c);return d?`${esc(c)} ${esc(hx(d).m[0]||'')} ${esc(d.sound)}`:esc(c)}).join(' · ');
+function renderWords(){
+  const q=$('w-q').value.trim(),st=$('w-st').value,hide=$('w-hide').checked;
+  const L=S.words.filter(w=>(st!=='u'||!w.learned)&&(st!=='l'||w.learned)&&(st!=='b'||w.mark)&&(!q||w.word.includes(q)||w.reading.includes(q)||w.meaning.includes(q)));
+  $('w-cnt').textContent=`(${L.length}개)`;show('w-empty',L.length===0);
+  $('w-grid').innerHTML=L.map(w=>{const cv=hide&&!wReveal.has(w.id);
+    return `<div onclick="${cv?`wReveal.add('${w.id}');renderWords()`:`openWd('${w.id}')`}" class="card p-4 cursor-pointer hover:border-indigo-400 hover:shadow-lg">
+      <div class="flex justify-between text-slate-400 text-sm mb-1" onclick="event.stopPropagation()">
+        <span class="flex gap-2"><button onclick="togWord('${w.id}','mark')" class="${w.mark?'text-amber-400':''}">★</button><button onclick="togWord('${w.id}','learned')" class="${w.learned?'text-emerald-500 font-bold':''}">✔</button></span>
+        <span class="flex gap-2"><button onclick="openWord('${w.id}')">✏️</button><button onclick="delWord('${w.id}')">🗑️</button></span></div>
+      <div class="hj text-3xl font-black text-indigo-600 dark:text-indigo-400 text-center py-2 break-all">${esc(w.word)}</div>
+      ${cv?'<div class="text-center text-[11px] text-slate-400 py-3">탭하여 뜻 보기</div>':`<div class="text-center text-xs font-bold">${esc(w.reading)}</div><div class="text-center text-xs mt-1">${esc(w.meaning)}</div><div class="text-center text-[10px] text-slate-400 mt-2">${breakdown(w.word)}</div>${exN(w)}`}</div>`}).join('');
+}
+function togWord(id,k){const w=S.words.find(x=>x.id===id);if(!w)return;w[k]=!w[k];save();renderWords()}
+async function delWord(id){
+  const w=S.words.find(x=>x.id===id);if(!w)return;
+  if(!await dlg({title:'단어 삭제',msg:`'${w.word}' 단어를 삭제할까요?`,ok:'삭제',danger:true}))return;
+  toTrash('word',w);S.words=S.words.filter(x=>x.id!==id);save();if(curWid===id)closeWd();renderWords();toast('단어를 휴지통으로 옮겼어요.');
+}
+function openWord(id){
+  editWid=id||null;const w=id?S.words.find(x=>x.id===id):null;
+  $('w-title').textContent=w?'단어 수정':'단어 추가';
+  $('w-word').value=w?w.word:'';$('w-read').value=w?w.reading:'';$('w-mean').value=w?w.meaning:'';$('w-ex').value=w?(w.ex||''):'';
+  readAuto=!w||w.reading===autoRead(w.word);toggleFind(false);$('w-find').value='';findHanja();$('m-word').classList.add('open');$('w-word').focus();
+}
+function autoFillWord(){const w=$('w-word').value.trim();if(w&&(readAuto||!$('w-read').value.trim()))$('w-read').value=autoRead(w)}
+let findRes=[];
+function toggleFind(force){const b=$('w-find-box'),on=force!==undefined?force:b.classList.contains('hidden');b.classList.toggle('hidden',!on);if(on)$('w-find').focus()}
+function findHanja(){
+  const q=$('w-find').value.trim();findRes=q?localSearch(q).slice(0,40):[];
+  $('w-chips').innerHTML=!q?'<span class="text-xs text-slate-400">음(학)이나 뜻(배울)을 입력해 고르세요</span>':!findRes.length?'<span class="text-xs text-slate-400">결과가 없어요</span>'
+    :findRes.map((d,k)=>`<button type="button" onclick="pickHanja(${k})" class="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-center hover:border-indigo-500"><div class="hj text-2xl font-black text-indigo-600 dark:text-indigo-400 leading-none">${esc(d.char)}</div><div class="text-[10px] text-slate-500 mt-1">${esc(hx(d).m[0])} ${esc(d.sound)}</div></button>`).join('');
+}
+function pickHanja(k){const d=findRes[k];if(!d)return;$('w-word').value+=d.char;autoFillWord();$('w-find').value='';findHanja();$('w-find').focus()}
+function wordBack(){const i=$('w-word');i.value=[...i.value].slice(0,-1).join('');if(i.value)autoFillWord();else if(readAuto)$('w-read').value=''}
+function wordFolder(){let f=S.folders.find(x=>x.id===S.wordFolderId);if(!f){f={id:'f'+Date.now(),name:'단어 한자'};S.folders.push(f);S.wordFolderId=f.id}return f}
+function syncWordHanja(word){
+  let added=0;const missing=[];
+  [...new Set(word)].forEach(c=>{if(!/[㐀-鿿]/.test(c)||S.items.some(i=>i.char===c))return;const d=DB.find(x=>x.char===c);if(!d){missing.push(c);return}if(add(d,wordFolder().id))added++});
+  return{added,missing};
+}
+function saveWord(){
+  const word=$('w-word').value.trim(),meaning=$('w-mean').value.trim(),reading=$('w-read').value.trim()||autoRead(word),ex=$('w-ex').value.trim();
+  if(!word)return toast('단어를 입력하세요.');if(!meaning)return toast('뜻을 입력하세요.');
+  if(S.words.some(x=>x.word===word&&x.id!==editWid))return toast('이미 등록된 단어입니다.');
+  if(editWid)Object.assign(S.words.find(x=>x.id===editWid),{word,reading,meaning,ex});
+  else S.words.unshift({id:'w'+Date.now()+Math.random().toString(36).slice(2,6),word,reading,meaning,ex,learned:false,mark:false});
+  const r=syncWordHanja(word);save();fillFolders();closeM('m-word');render();
+  toast('단어가 저장되었습니다.'+(r.added?` 한자 ${r.added}개를 '단어 한자' 폴더에 추가했어요.`:'')+(r.missing.length?` (DB에 없는 한자: ${r.missing.join('')})`:''));
+}
+const exList=w=>String(w.ex||'').split('\n').map(s=>s.trim()).filter(Boolean);
+const exHtml=w=>{const L=exList(w);if(!L.length)return'';
+  return '<div class="text-xs font-bold text-slate-400 pt-2">📖 예문</div>'+L.map(s=>`<div class="text-sm p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 leading-relaxed">${esc(s).split(esc(w.word)).join('<b class="text-indigo-500">'+esc(w.word)+'</b>')}</div>`).join('')};
+const exN=w=>exList(w).length?`<div class="text-center text-[10px] text-indigo-400 mt-1">📖 예문 ${exList(w).length}개</div>`:'';
+const wdChars=()=>{const w=S.words.find(x=>x.id===curWid);return w?[...w.word].filter(c=>/[㐀-鿿]/.test(c)):[]};
+function openWd(id){
+  const w=S.words.find(x=>x.id===id);if(!w)return;curWid=id;wdIdx=0;WW=WW||makeWriter('ww');
+  $('wd-word').textContent=w.word;$('wd-read').textContent=w.reading;$('wd-mean').textContent=w.meaning;$('wd-ex').innerHTML=exHtml(w);
+  wdMarks();wdTiles();$('m-wd').classList.add('open');wdPick(0);
+}
+function wdMarks(){const w=S.words.find(x=>x.id===curWid);if(!w)return;$('wd-mark').className=w.mark?'text-amber-400':'';$('wd-learn').className=w.learned?'text-emerald-500 font-bold':''}
+function wdTiles(){
+  const cs=wdChars();
+  $('wd-chars').innerHTML=cs.length?cs.map((c,k)=>{const d=DB.find(x=>x.char===c);
+    return `<button onclick="wdPick(${k})" class="w-20 py-3 rounded-xl border text-center ${k===wdIdx?'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/50':'border-slate-200 dark:border-slate-700'}">
+      <div class="hj text-3xl font-black text-indigo-600 dark:text-indigo-400">${esc(c)}</div><div class="text-xs font-bold truncate px-1 mt-1">${d?esc(hx(d).m[0]+' '+d.sound):'정보 없음'}</div></button>`}).join(''):'<span class="text-xs text-slate-400">한자가 없는 단어입니다.</span>';
+}
+function wdPick(k){
+  const cs=wdChars();if(!cs.length){$('ww').innerHTML='';$('wd-cinfo').textContent='';return}
+  wdIdx=Math.min(k,cs.length-1);const c=cs[wdIdx],d=DB.find(x=>x.char===c);wdTiles();
+  $('wd-cinfo').innerHTML=d?hxHtml(d,true):'<span class="text-xs text-slate-400">내장 DB에 없는 한자</span>';WW.show(c);
+}
+function wdTog(k){const w=S.words.find(x=>x.id===curWid);if(!w)return;w[k]=!w[k];save();wdMarks();render()}
+function wdEdit(){const id=curWid;closeWd();openWord(id)}
+function wdDel(){delWord(curWid)}
+function closeWd(){if(WW)WW.stop();closeM('m-wd');render()}
+
+/* ---------- 퀴즈 ---------- */
+let QZ=null;
+const lab=r=>r.meaning.split(',')[0]+' '+r.sound;
+const wqLab=(w,m)=>m==='m2w'?w.word:m==='w2r'?w.reading:w.meaning;
+function prepQuiz(){
+  const hj=nav.sec==='hanja';quizTok++;
+  show('qz-cfg',true);show('qz-play',false);show('qz-res',false);
+  $('qz-title').textContent=hj?'한자 퀴즈':'단어 퀴즈';show('qz-w-folder',hj);show('qz-w-mode',!hj);
+  if(hj)$('q-folder').innerHTML=folderOpts(true);
+  const bad=!hj&&S.words.length<4;show('qz-warn',bad);$('qz-warn').textContent='단어가 4개 이상 있어야 퀴즈를 낼 수 있어요.';
+  $('qz-start').disabled=bad;$('qz-start').classList.toggle('opacity-50',bad);
+}
+function mkHanja(it){
+  const w=new Set(),right=lab(it);
+  while(w.size<3){const d=DB[Math.floor(Math.random()*DB.length)];if(d.char!==it.char&&lab(d)!==right)w.add(lab(d))}
+  return{src:it,big:it.char,bigCls:'hj text-7xl text-indigo-500',hint:'이 한자의 훈·음은?',ch:shuffle([...w,right]),right,chCls:'text-sm'};
+}
+function mkWord(w,mode){
+  const right=wqLab(w,mode),seen=new Set([right]),ds=[],m2w=mode==='m2w';
+  for(const x of shuffle(S.words.filter(x=>x.id!==w.id))){const l=wqLab(x,mode);if(l&&!seen.has(l)){seen.add(l);ds.push(l);if(ds.length===3)break}}
+  return{src:w,big:m2w?w.meaning:w.word,bigCls:m2w?'text-2xl text-indigo-500':'hj text-6xl text-indigo-500',
+    hint:mode==='w2m'?'이 단어의 뜻은?':mode==='w2r'?'이 단어의 독음은?':'이 뜻에 해당하는 한자 단어는?',ch:shuffle([...ds,right]),right,chCls:m2w?'hj text-xl':'text-sm'};
+}
+function buildQuiz(sec,pool,mode){
+  const list=pool.map(x=>sec==='hanja'?mkHanja(x):mkWord(x,mode)).filter(q=>q.ch.length>=2);
+  if(!list.length)return toast('보기를 만들 수 있는 항목이 부족해요.');
+  QZ={sec,mode,list,i:0,s:0,wrong:[]};quizTok++;show('qz-cfg',false);show('qz-res',false);show('qz-play',true);qzShow();
+}
+function startQuiz(){
+  const sc=$('q-scope').value,nv=$('q-n').value,mode=$('q-mode').value;let pool;
+  if(nav.sec==='hanja'){const fo=$('q-folder').value;pool=S.items.filter(i=>(!fo||i.folder===fo)&&(sc!=='u'||!i.learned)&&(sc!=='b'||i.mark))}
+  else{if(S.words.length<4)return toast('단어가 4개 이상 있어야 퀴즈를 낼 수 있어요.');pool=S.words.filter(w=>(sc!=='u'||!w.learned)&&(sc!=='b'||w.mark))}
+  if(!pool.length)return toast('퀴즈로 낼 항목이 없습니다.');
+  buildQuiz(nav.sec,shuffle(pool).slice(0,nv==='all'?pool.length:Math.min(pool.length,parseInt(nv,10))),mode);
+}
+function qzShow(){
+  const q=QZ.list[QZ.i];
+  $('qz-prog').textContent=`문제 ${QZ.i+1} / ${QZ.list.length}`;$('qz-score').textContent=`정답 ${QZ.s}`;$('qz-bar').style.width=(QZ.i/QZ.list.length*100)+'%';
+  $('qz-hint').textContent=q.hint;const el=$('qz-big');el.textContent=q.big;el.className=q.bigCls+' font-black text-center py-5 break-all';
+  $('qz-ch').innerHTML=q.ch.map((c,k)=>`<button class="${q.chCls} p-3 rounded-2xl border border-slate-200 dark:border-slate-700 font-bold text-left hover:border-indigo-500 flex gap-2" onclick="qzAns(${k})"><span class="text-[10px] text-slate-400 mt-1">${k+1}</span><span>${esc(c)}</span></button>`).join('');
+}
+function qzAns(k){
+  const q=QZ&&QZ.list[QZ.i],bs=document.querySelectorAll('#qz-ch button');if(!q||!bs.length||bs[0].disabled)return;
+  const right=q.ch.indexOf(q.right),ok=k===right,tok=quizTok;
+  bs.forEach((x,i)=>{x.disabled=true;if(i===right)x.classList.add('border-emerald-500','text-emerald-500')});
+  if(ok){QZ.s++;const m=(QZ.sec==='hanja'?S.items:S.words).find(x=>x.id===q.src.id);if(m)m.learned=true}
+  else{bs[k].classList.add('border-rose-500','text-rose-500');QZ.wrong.push(q.src)}
+  $('qz-score').textContent=`정답 ${QZ.s}`;save();
+  setTimeout(()=>{if(tok!==quizTok)return;if(++QZ.i<QZ.list.length)qzShow();else qzEnd()},ok?700:1400);
+}
+function qzEnd(){
+  show('qz-play',false);show('qz-res',true);
+  $('qz-final').textContent=`${QZ.s} / ${QZ.list.length} (${Math.round(QZ.s/QZ.list.length*100)}점)`;const hj=QZ.sec==='hanja';
+  $('qz-wrong').innerHTML=QZ.wrong.length?'<div class="font-bold text-slate-400 mb-1">틀린 항목</div>'+QZ.wrong.map(x=>`<div class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800"><span class="hj font-black text-indigo-500">${esc(hj?x.char:x.word)}</span> ${hj?`<b>${esc(hx(x).m[0]||'')} ${esc(x.sound)}</b>`:`<b>${esc(x.reading)}</b> · ${esc(x.meaning)}`}</div>`).join(''):'<div class="text-center text-emerald-500 font-bold">모두 맞혔어요! 🎉</div>';
+  show('qz-retry',QZ.wrong.length>0);
+}
+function retryWrong(){if(QZ&&QZ.wrong.length)buildQuiz(QZ.sec,shuffle(QZ.wrong),QZ.mode)}
+
+/* ---------- 초기화 (2단계 확인 → 동의하기) ---------- */
+async function startReset(){
+  const ok=await dlg({title:'모든 데이터 초기화',msg:'저장한 한자, 폴더, 단어, 암기·북마크 기록이 모두 삭제됩니다.\n\n계속 진행할까요?',ok:'계속',danger:true});
+  if(!ok)return;
+  $('reset-info').innerHTML=`<div>📚 한자 <b>${S.items.length}</b>개</div><div>📂 폴더 <b>${S.folders.length}</b>개</div><div>📝 단어 <b>${S.words.length}</b>개</div><div>🗑️ 휴지통 <b>${S.trash.length}</b>개</div>`;
+  $('m-reset').classList.add('open');
+}
+function doReset(){
+  try{localStorage.removeItem(KEY)}catch(e){}
+  location.reload();
+}
+
+/* ---------- 휴지통 ---------- */
+function toTrash(type,data){S.trash.unshift({tid:'t'+Date.now()+Math.random().toString(36).slice(2,6),type,data:JSON.parse(JSON.stringify(data)),at:Date.now()});trashN()}
+function trashN(){$('trash-n').textContent=S.trash.length?`(${S.trash.length})`:''}
+function openTrash(){renderTrash();$('m-trash').classList.add('open')}
+function renderTrash(){
+  trashN();
+  $('trash-list').innerHTML=S.trash.length?S.trash.map(t=>{
+    const d=Math.floor((Date.now()-t.at)/864e5),when=d===0?'오늘':`${d}일 전`,left=Math.max(1,30-d);let tag,label;
+    if(t.type==='item'){tag='한자';label=`<span class="hj text-lg text-indigo-500">${esc(t.data.char)}</span> ${esc(t.data.meaning)} ${esc(t.data.sound)}`}
+    else if(t.type==='word'){tag='단어';label=`<span class="hj text-indigo-500">${esc(t.data.word)}</span> ${esc(t.data.meaning)}`}
+    else{tag='폴더';label=`📂 ${esc(t.data.folder.name)} <span class="text-xs text-slate-400">(한자 ${t.data.itemIds.length}개 포함)</span>`}
+    return `<div class="flex items-center justify-between gap-2 p-3 rounded-2xl border border-slate-200 dark:border-slate-800">
+      <div class="min-w-0"><div class="text-sm font-bold truncate">${label}</div><div class="text-[11px] text-slate-400">${tag} · ${when} 삭제 · ${left}일 후 자동 삭제</div></div>
+      <div class="flex gap-1 shrink-0"><button onclick="restoreTrash('${t.tid}')" class="b grn">복원</button><button onclick="purgeTrash('${t.tid}')" class="b g text-rose-500">영구 삭제</button></div></div>`}).join(''):'<p class="text-center text-xs text-slate-400 py-16">휴지통이 비어 있어요.</p>';
+}
+function restoreTrash(tid){
+  const k=S.trash.findIndex(t=>t.tid===tid);if(k<0)return;const t=S.trash[k];
+  if(t.type==='item'){
+    if(S.items.some(i=>i.char===t.data.char))return toast('같은 한자가 이미 있어서 복원할 수 없어요.');
+    const it={...t.data};if(!S.folders.some(f=>f.id===it.folder))it.folder=S.folders[0].id;S.items.push(it);
+  }else if(t.type==='word'){
+    if(S.words.some(w=>w.word===t.data.word))return toast('같은 단어가 이미 있어서 복원할 수 없어요.');S.words.push({...t.data});
+  }else{
+    const{folder,itemIds}=t.data;if(!S.folders.some(f=>f.id===folder.id))S.folders.push({...folder});
+    S.items.forEach(i=>{if(itemIds.includes(i.id))i.folder=folder.id});
+  }
+  S.trash.splice(k,1);save();fillFolders();renderTrash();render();toast('복원했어요.');
+}
+async function purgeTrash(tid){if(!await dlg({title:'영구 삭제',msg:'이 항목은 다시 복원할 수 없어요. 삭제할까요?',ok:'영구 삭제',danger:true}))return;S.trash=S.trash.filter(t=>t.tid!==tid);save();renderTrash()}
+async function emptyTrash(){
+  if(!S.trash.length)return toast('휴지통이 비어 있어요.');
+  if(!await dlg({title:'휴지통 비우기',msg:`${S.trash.length}개 항목이 영구 삭제되고 복원할 수 없어요.`,ok:'모두 삭제',danger:true}))return;
+  S.trash=[];save();renderTrash();toast('휴지통을 비웠어요.');
+}
+
+/* ---------- 키보드 ---------- */
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    if($('m-dlg').classList.contains('open')){$('dlg-cancel').click();return}
+    const close={'m-detail':closeDetail,'m-wd':closeWd,'m-search':()=>closeM('m-search'),'m-trash':()=>closeM('m-trash'),'m-word':()=>closeM('m-word'),'m-fmenu':()=>closeM('m-fmenu'),'m-reset':()=>closeM('m-reset')};
+    for(const id in close)if($(id).classList.contains('open')){close[id]();break}return;
+  }
+  if(/^[1-4]$/.test(e.key)&&!$('qz-play').classList.contains('hidden')&&!/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)){
+    if(QZ&&QZ.list[QZ.i]&&+e.key<=QZ.list[QZ.i].ch.length)qzAns(+e.key-1);
+  }
+});
+$('w-read').addEventListener('input',()=>{readAuto=false});
+
+/* ---------- 시작 ---------- */
+if(firstRun){'水木火金土日月山'.split('').forEach(c=>add(DB.find(d=>d.char===c),'f1'));save()}
+if(S.dark===false)document.documentElement.classList.remove('dark');
+fillFolders();apiBtn();trashN();render();
+</script>
+</body>
+</html>
